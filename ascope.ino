@@ -94,7 +94,7 @@ loop () {
 	Serial.write(0); // sync
 	Serial.write(prescale); // report current prescale
 	for (n=0; n<N; ++n) {
-		c=buf[n];
+		c = buf[n];
 		if (c==0)
 			c = 1;
     		Serial.write(c);
