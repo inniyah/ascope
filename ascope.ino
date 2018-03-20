@@ -5,32 +5,36 @@
 #include <avr/sleep.h>
 
 unsigned char buf[256];
-volatile unsigned char n;
-volatile char rdy;
 unsigned char prescale=7;
+volatile unsigned char rdy=0;
 
 #define sbi(port,bit) (port) |= (1<<(bit))
 #define cbi(port,bit) (port) &= ~(1<<(bit))
 
-#if 0
-ISR(ADC_vect) {
-	buf[n] = ADCH;
-	++n;
-	if (!n) {
-		cbi(ADCSRA,ADEN); // stop ADC
-		rdy = 1; // set ready flag
-		// debug
-		PORTB&=B11011111;
-	}
-}
-#endif
-
 ISR(ANALOG_COMP_vect) {
-	n = 0; // set counter to buffer head
-	cbi(ACSR,ACIE); // disable analog comparator interrupt
-	sbi(ADCSRA,ADIE); // enable ADC interrupt
-	// debug
+	register unsigned char n;
+	register unsigned char *bufptr;
+	// disable analog comparator interrupt
+	cbi(ACSR,ACIE);
+	// turn on acquisition LED
 	PORTB|=B00100000;
+	// start acquisition
+	cli();
+	bufptr = buf;
+	n = 0;
+	do {
+		// wait for the conversion result
+		while (!(ADCSRA&(1<<ADIF)));
+		// save conversion result
+		*bufptr++ = ADCH;
+		// turn off ADIF flag
+		ADCSRA |= 1<<ADIF;
+	} while (--n);
+	sei();
+	// turn off acquisition LED
+	PORTB&=B11011111;
+	// raise ready flag
+	rdy = 1;
 }
 
 void
@@ -55,20 +59,19 @@ setup () {
 	sbi(DIDR1,AIN0D);
 	// init serial
 	Serial.begin(9600);
-	// debug: turn off digital pin 13
+	// we use LED 13 as an aquisition indicator
 	pinMode(13,OUTPUT);
 	PORTB&=B11011111;
 }
 
 void
 loop () {
-	// clear flag
+	unsigned char n,c;
+	// clear ready flag
 	rdy = 0;
 	// set ADC clock prescale value
 	ADCSRA &= B11111000;
 	ADCSRA += B00000111&prescale;
-	// disable ADC interrupt
-	cbi(ADCSRA,ADIE);
 	// start ADC
 	sbi(ADCSRA,ADEN);
 	sbi(ADCSRA,ADSC);
@@ -86,7 +89,7 @@ loop () {
 	Serial.write(prescale); // report current prescale
 	n = 0;
 	do {
-		unsigned char c=buf[n];
+		c=buf[n];
 		if (c==0)
 			c = 1;
     		Serial.write(c);

@@ -278,7 +278,7 @@ main (void) {
 				}
 				if (rdy && mode&O_RUN && ks==XK_Up) {
 					// increase sampling rate
-					if (prescale>2) {
+					if (prescale>0) {
 						--prescale;
 						// send it to the device
 						write(fd,&prescale,1);
