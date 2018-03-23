@@ -24,7 +24,6 @@ ISR(ANALOG_COMP_vect) {
 	// clear completed ADC result as it might be below trigger level
 	ADCSRA |= 1<<ADIF;
 	// start acquisition
-	cli();
 	bufptr = buf;
 	n = N;
 	do {
@@ -35,7 +34,6 @@ ISR(ANALOG_COMP_vect) {
 		// turn off ADIF flag
 		ADCSRA |= 1<<ADIF;
 	} while (--n);
-	sei();
 	// turn off acquisition LED
 	PORTB&=0b11011111;
 	// raise ready flag
