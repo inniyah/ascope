@@ -178,11 +178,6 @@ main (void) {
 			if (mode&O_RUN) {
 				// clear previous oscillogram
 				mkosc(dpy,pm,gc,NULL,Z);
-				// draw status line
-				snprintf(sl,256,"%.1f V/div, %d S/div", \
-				VDIV,SDIV);
-				XSetForeground(dpy,gc,0xffffff);
-				XDrawString(dpy,pm,gc,0,H-1,sl,strlen(sl));
 				// send itself an exposure event
 				evt.type = Expose;
 				XSendEvent(dpy,win,False,0,&evt);
@@ -235,14 +230,14 @@ main (void) {
 				// draw status line
 				if (Z==1)
 					snprintf(sl,256,\
-					"%.1f V/div, %d S/div, %.0f kSps", \
-					VDIV,SDIV,ksps(prescale));
+					"%.1f V/div, %.0f us/div", \
+					VDIV,SDIV*1000/ksps(prescale));
 				else
 					snprintf(sl,256,\
-					"%.1f V/div, %d S/div, " \
-					"%.0f kSps, %dx (%s)", \
-					VDIV,SDIV,ksps(prescale),Z, \
-					(mode&O_LIN)?"linear":"sinc");
+					"%.1f V/div, %.0f us/div, " \
+					"%dx (%s)", \
+					VDIV,SDIV*1000/ksps(prescale), \
+					Z,(mode&O_LIN)?"linear":"sinc");
 				XSetForeground(dpy,gc,0xffffff);
 				XDrawString(dpy,pm,gc,0,H-1,sl,strlen(sl));
 				// send itself an exposure event
