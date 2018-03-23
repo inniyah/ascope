@@ -1,8 +1,9 @@
-// X11 GUI for Arduino oscilloscope
-// by Alexander Mukhin
-// Public domain
+// X11 GUI for Arduino oscilloscope.
+// Written by Alexander Mukhin.
+// Public domain.
 
 #define N 256 // number of samples in buffer
+#define MAXCHS 2 // maximum number of channels
 #define MAXP 8 // maximum zoom power, should not exceed log2(N)
 #define W 512 // window width
 #define H 256 // window height
@@ -32,7 +33,9 @@
 
 // draw oscillogram on a pixmap
 void
-mkosc (Display *dpy, Pixmap pm, GC gc, float *buf, int Z) {
+mkosc (Display *dpy, Pixmap pm, GC gc, float buf[MAXCHS][N], int chs, int Z) {
+	const int clrs[MAXCHS] = {0x00ff00,0xff0000}; // channel colors
+	int ch; // current channel
 	int i; // counter
 	int x,xprev,y,yprev; // coordinates
 	// clear pixmap
@@ -52,21 +55,23 @@ mkosc (Display *dpy, Pixmap pm, GC gc, float *buf, int Z) {
 	XSetForeground(dpy,gc,0x808080);
 	y = (H-1)*(1+V_MIN/(V_MAX-V_MIN));
 	XDrawLine(dpy,pm,gc,0,y,W-1,y);
-	// draw waveform
-	XSetForeground(dpy,gc,0x00ff00);
 	if (!buf)
 		// return if no data available
 		// we use this to clear screen
 		return;
-	for (i=0; i<N; ++i) {
-		x = i*W/N;
-		y = (H-1)*(1-buf[i]);
-		if (i)
-			XDrawLine(dpy,pm,gc,xprev,yprev,x,y);
-		else
-			XDrawPoint(dpy,pm,gc,0,y);
-		xprev = x;
-		yprev = y;
+	// draw waveforms
+	for (ch=0; ch<chs; ++ch) {
+		XSetForeground(dpy,gc,clrs[ch]);
+		for (i=0; i<N; ++i) {
+			x = i*W/N;
+			y = (H-1)*(1-buf[ch][i]);
+			if (i)
+				XDrawLine(dpy,pm,gc,xprev,yprev,x,y);
+			else
+				XDrawPoint(dpy,pm,gc,0,y);
+			xprev = x;
+			yprev = y;
+		}
 	}
 }
 
@@ -74,6 +79,19 @@ mkosc (Display *dpy, Pixmap pm, GC gc, float *buf, int Z) {
 float
 ksps (int prescale) {
 	return 16000.0/(13*(1<<prescale));
+}
+
+// make oscilloscope control word
+unsigned char
+mkcw (unsigned char chs, unsigned char prescale) {
+	return (chs<<4)+(0b00000111&prescale);
+}
+
+// parse oscilloscope control word
+void
+parsecw (unsigned char cw, unsigned char *chs, unsigned char *prescale) {
+	*chs = cw>>4;
+	*prescale = cw&0b00000111;
 }
 
 // sinus cardinalis
@@ -91,11 +109,14 @@ static float sinctbl[MAXP+1][N*N];
 
 int
 main (void) {
-	unsigned char rbuf[N]; // raw data buffer
+	unsigned char rbuf[MAXCHS][N]; // raw data buffer
+	unsigned char cw; // oscilloscope control word
 	unsigned char prescale; // ADC clock prescale factor
+	unsigned char chs; // number of channels
+	unsigned char ch; // current channel
 	unsigned char c; // data sample
-	float sbuf[N]; // raw data scaled to [0,1]
-	float zbuf[N],*zptr; // interpolated (zoomed) data and a pointer
+	float sbuf[MAXCHS][N]; // raw data scaled to [0,1]
+	float zbuf[MAXCHS][N],*zptr; // interpolated (zoomed) data and a pointer
 	int p,Z; // zoom power and factor (Z=2^p)
 	int k,l,m; // indices
 	float *tptr; // pointer to sinc tables
@@ -104,7 +125,7 @@ main (void) {
 	struct termios t; // terminal structure
 	struct pollfd pfds[2]; // poll structures
 	enum {O_LIN=0x1,O_RUN=0x2} mode=3; // mode of operation
-	char sl[N]; // buffer for status line text
+	char sl[256]; // buffer for status line text
 	int rdy=0; // ready flag, means oscillogram is received and displayed
 	// X stuff
 	Display *dpy;
@@ -177,7 +198,7 @@ main (void) {
 			// poll() timed out
 			if (mode&O_RUN) {
 				// clear previous oscillogram
-				mkosc(dpy,pm,gc,NULL,Z);
+				mkosc(dpy,pm,gc,NULL,chs,Z);
 				// send itself an exposure event
 				evt.type = Expose;
 				XSendEvent(dpy,win,False,0,&evt);
@@ -194,39 +215,46 @@ main (void) {
 			read(fd,&c,1);
 			if (c==0) {
 				// got sync
-				// read prescale value
-				read(fd,&prescale,1);
-				// fill the raw and scaled buffers
-				for (m=0; m<N; ++m) {
-					read(fd,&c,1);
-					rbuf[m] = c;
-					sbuf[m] = c/255.0;
-				}
+				// read and parse control word
+				read(fd,&cw,1);
+				parsecw(cw,&chs,&prescale);
+				// read data buffers
+				for (ch=0; ch<chs; ++ch)
+					for (m=0; m<N; ++m) {
+						read(fd,&c,1);
+						rbuf[ch][m] = c;
+						// fill scaled buffer
+						sbuf[ch][m] = c/255.0;
+					}
 				// do interpolation (zoom)
-				zptr = zbuf;
 				if (mode&O_LIN) {
 					// linear interpolation
+					for (ch=0; ch<chs; ++ch) {
+					zptr = zbuf[ch];
 					for (k=0; k<N/Z; ++k)
 						for (l=0; l<Z; ++l) {
 							float t=(float)l/Z;
 							*zptr++ = \
-							sbuf[k]*(1-t)+sbuf[k+1]*t;
+							sbuf[ch][k]*(1-t)+\
+							sbuf[ch][k+1]*t;
 						}
+					}
 				} else {
 					// sinc interpolation
+					for (ch=0; ch<chs; ++ch) {
+					zptr = zbuf[ch];
 					tptr = sinctbl[p];
 					for (k=0; k<N/Z; ++k)
 						for (l=0; l<Z; ++l) {
 							s = 0.0;
 							for (m=0; m<N; ++m)
-								s += \
-								(sbuf[m]-sbuf[0])\
-								**tptr++;
-							*zptr++ = s+sbuf[0];
-						}
+					s += (sbuf[ch][m]-sbuf[ch][0])**tptr++;
+					*zptr++ = s+sbuf[ch][0];
+							}
+					}
 				}
 				// draw oscillogram
-				mkosc(dpy,pm,gc,zbuf,Z);
+				mkosc(dpy,pm,gc,zbuf,chs,Z);
 				// draw status line
 				if (Z==1)
 					snprintf(sl,256,\
@@ -266,8 +294,10 @@ main (void) {
 					// decrease sampling rate
 					if (prescale<7) {
 						++prescale;
+						// make control word
+						cw = mkcw(chs,prescale);
 						// send it to the device
-						write(fd,&prescale,1);
+						write(fd,&cw,1);
 						tcflush(fd,TCOFLUSH);
 					}
 				}
@@ -275,10 +305,28 @@ main (void) {
 					// increase sampling rate
 					if (prescale>2) {
 						--prescale;
+						// make control word
+						cw = mkcw(chs,prescale);
 						// send it to the device
-						write(fd,&prescale,1);
+						write(fd,&cw,1);
 						tcflush(fd,TCOFLUSH);
 					}
+				}
+				if (rdy && mode&O_RUN && ks==XK_1) {
+					// start single-channel mode
+					chs = 1;
+					cw = mkcw(chs,prescale);
+					// send it to the device
+					write(fd,&cw,1);
+					tcflush(fd,TCOFLUSH);
+				}
+				if (rdy && mode&O_RUN && ks==XK_2) {
+					// start two-channel mode
+					chs = 2;
+					cw = mkcw(chs,prescale);
+					// send it to the device
+					write(fd,&cw,1);
+					tcflush(fd,TCOFLUSH);
 				}
 				if (rdy && mode&O_RUN && ks==XK_Left) {
 					// decrease zoom power
@@ -324,8 +372,10 @@ main (void) {
 				}
 				if (rdy && ks==XK_d) {
 					// dump raw buffer to stderr
-					for (k=0; k<N; ++k)
-						fprintf(stderr,"%hhu\n",rbuf[k]);
+					for (ch=0; ch<chs; ++ch)
+						for (k=0; k<N; ++k)
+							fprintf(stderr,\
+							"%hhu\n",rbuf[ch][k]);
 					fflush(stderr);
 				}
 			}
