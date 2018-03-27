@@ -75,23 +75,23 @@ mkosc (Display *dpy, Pixmap pm, GC gc, float buf[MAXCHS][N], int chs, int Z) {
 	}
 }
 
-// get sampling rate in ksps for the given prescale factor
+// get sampling rate in ksps for the given delay time
 float
-ksps (int prescale) {
-	return 16000.0/(13*(1<<prescale));
+ksps (int dly) {
+	return 16000.0/(13*(1<<dly));
 }
 
 // make oscilloscope control word
 unsigned char
-mkcw (unsigned char chs, unsigned char prescale) {
-	return (chs<<4)+(0x07&prescale);
+mkcw (unsigned char chs, unsigned char dly) {
+	return (chs<<4)+(0x0f&dly);
 }
 
 // parse oscilloscope control word
 void
-parsecw (unsigned char cw, unsigned char *chs, unsigned char *prescale) {
+parsecw (unsigned char cw, unsigned char *chs, unsigned char *dly) {
 	*chs = cw>>4;
-	*prescale = cw&0x07;
+	*dly = cw&0x0f;
 }
 
 // sinus cardinalis
@@ -111,7 +111,7 @@ int
 main (void) {
 	unsigned char rbuf[MAXCHS][N]; // raw data buffer
 	unsigned char cw; // oscilloscope control word
-	unsigned char prescale; // ADC clock prescale factor
+	unsigned char dly; // delay XXX
 	unsigned char chs; // number of channels
 	unsigned char ch; // current channel
 	unsigned char c; // data sample
@@ -158,10 +158,14 @@ main (void) {
 	}
 	// put it to non-canonical mode
 	tcgetattr(fd,&t);
+#if 0
 	t.c_iflag &= ~(ICRNL|IXON);
 	t.c_oflag &= ~OPOST;
 	t.c_cflag &= ~HUPCL;
 	t.c_lflag &= ~(ICANON|ECHO|IEXTEN|ISIG);
+#else
+	cfmakeraw(&t);
+#endif
 	tcsetattr(fd,TCSANOW,&t);
 
 	// init X
@@ -217,7 +221,8 @@ main (void) {
 				// got sync
 				// read and parse control word
 				read(fd,&cw,1);
-				parsecw(cw,&chs,&prescale);
+				parsecw(cw,&chs,&dly);
+printf("dly=%d\n",dly);
 				// read data buffers
 				for (ch=0; ch<chs; ++ch)
 					for (m=0; m<N; ++m) {
@@ -259,12 +264,12 @@ main (void) {
 				if (Z==1)
 					snprintf(sl,256,\
 					"%.1f V/div, %.0f us/div", \
-					VDIV,SDIV*1000/ksps(prescale));
+					VDIV,SDIV*1000/ksps(dly));
 				else
 					snprintf(sl,256,\
 					"%.1f V/div, %.0f us/div, " \
 					"%dx (%s)", \
-					VDIV,SDIV*1000/ksps(prescale), \
+					VDIV,SDIV*1000/ksps(dly), \
 					Z,(mode&O_LIN)?"linear":"sinc");
 				XSetForeground(dpy,gc,0xffffff);
 				XDrawString(dpy,pm,gc,0,H-1,sl,strlen(sl));
@@ -292,10 +297,10 @@ main (void) {
 				}
 				if (rdy && mode&O_RUN && ks==XK_Down) {
 					// decrease sampling rate
-					if (prescale<7) {
-						++prescale;
+					if (dly<15) {
+						++dly;
 						// make control word
-						cw = mkcw(chs,prescale);
+						cw = mkcw(chs,dly);
 						// send it to the device
 						write(fd,&cw,1);
 						tcflush(fd,TCOFLUSH);
@@ -303,10 +308,10 @@ main (void) {
 				}
 				if (rdy && mode&O_RUN && ks==XK_Up) {
 					// increase sampling rate
-					if (prescale>2) {
-						--prescale;
+					if (dly>0) {
+						--dly;
 						// make control word
-						cw = mkcw(chs,prescale);
+						cw = mkcw(chs,dly);
 						// send it to the device
 						write(fd,&cw,1);
 						tcflush(fd,TCOFLUSH);
@@ -315,7 +320,7 @@ main (void) {
 				if (rdy && mode&O_RUN && ks==XK_1) {
 					// start single-channel mode
 					chs = 1;
-					cw = mkcw(chs,prescale);
+					cw = mkcw(chs,dly);
 					// send it to the device
 					write(fd,&cw,1);
 					tcflush(fd,TCOFLUSH);
@@ -323,7 +328,7 @@ main (void) {
 				if (rdy && mode&O_RUN && ks==XK_2) {
 					// start two-channel mode
 					chs = 2;
-					cw = mkcw(chs,prescale);
+					cw = mkcw(chs,dly);
 					// send it to the device
 					write(fd,&cw,1);
 					tcflush(fd,TCOFLUSH);
@@ -386,7 +391,7 @@ main (void) {
 				y = evt.xbutton.y;
 				if (x<W && y<H) {
 					float t,v;
-					t = (x/W)*N*1000.0/(Z*ksps(prescale));
+					t = (x/W)*N*1000.0/(Z*ksps(dly));
 					v = V_MAX-(V_MAX-V_MIN)*y/(H-1);
 					printf("%.1f us, %.2f V\n",t,v);
 				}
