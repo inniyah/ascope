@@ -21,16 +21,8 @@ ISR(ANALOG_COMP_vect) {
 	register int n;
 	register unsigned char *bufptr;
 	unsigned char prev; // previous register value
-	// disable analog comparator interrupt
-	// (we don't want it happen while this ISR is doing its
-	// business, because otherwise this ISR will be called just
-	// after it returns from processing the 1st channel, but at
-	// this time the phase of the input signal would be arbitrary,
-	// whereas we want the signal exactly from the moment the AC
-	// triggered)
-	cbi(ACSR,ACIE);
 	// turn on acquisition LED
-	PORTB|=0b00100000;
+	PORTB|=B00100000;
 	// clear completed ADC result as it might be below trigger level
 	ADCSRA |= 1<<ADIF;
 	// start acquisition
@@ -51,18 +43,21 @@ ISR(ANALOG_COMP_vect) {
 #endif
 		// select next channel
 		prev = ADMUX;
-		ADMUX = (prev&0b11110000)+(ch&0b00001111);
+		ADMUX = (prev&B11110000)+(ch&B00001111);
 #if 0
 		// start ADC
 		sbi(ADCSRA,ADEN);
 		sbi(ADCSRA,ADSC);
 #endif
-		// enable analog comparator interrupt
-		sbi(ACSR,ACIE);
+		// clear AC interrupt flag
+		// (as it might be raised while this ISR is running)
+		ACSR |= 1<<ACI;
 	} else {
 		// done with the last channel
+		// disable analog comparator interrupt
+		cbi(ACSR,ACIE);
 		// turn off acquisition LED
-		PORTB&=0b11011111;
+		PORTB&=B11011111;
 		// raise ready flag
 		rdy = 1;
 	}
@@ -79,7 +74,7 @@ setup () {
 	// enable auto-triggering
 	sbi(ADCSRA,ADATE);
 	// disable digital input buffer on all ADC pins (ADC0-ADC7)
-	DIDR0 = 0b11111111;
+	DIDR0 = B11111111;
 	// init analog comparator
 	// select intr on rising edge
 	sbi(ACSR,ACIS1);
@@ -91,7 +86,11 @@ setup () {
 	Serial.begin(9600);
 	// we use LED 13 as an aquisition indicator
 	pinMode(13,OUTPUT);
-	PORTB&=0b11011111;
+	PORTB&=B11011111;
+	// disable Timer/Counter0 interrupts
+	// (disabling unused interrupts
+	// helps keep the phases of the channels as close as possible)
+	TIMSK0=0;
 }
 
 void
@@ -103,10 +102,10 @@ loop () {
 	rdy = 0;
 	// set ADC clock prescale value
 	prev = ADCSRA;
-	ADCSRA = (prev&0b11111000)+(0b00000111&prescale);
+	ADCSRA = (prev&B11111000)+(B00000111&prescale);
 	// select channel 0
 	ch = 0;
-	ADMUX &= 0b11110000;
+	ADMUX &= B11110000;
 	// start ADC
 	sbi(ADCSRA,ADEN);
 	sbi(ADCSRA,ADSC);
@@ -129,10 +128,12 @@ loop () {
 				c = 1;
 	    		Serial.write(c);
 		}
+	// wait for transmit to complete
+	Serial.flush();
 	// read and parse the new control word, if any
 	if (Serial.available()) {
 		cw = Serial.read();
-		prescale = cw&0b00000111;
+		prescale = cw&B00000111;
 		chs = cw>>4;
 	}
 }

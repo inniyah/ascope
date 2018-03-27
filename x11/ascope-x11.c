@@ -84,14 +84,14 @@ ksps (int prescale) {
 // make oscilloscope control word
 unsigned char
 mkcw (unsigned char chs, unsigned char prescale) {
-	return (chs<<4)+(0b00000111&prescale);
+	return (chs<<4)+(0x07&prescale);
 }
 
 // parse oscilloscope control word
 void
 parsecw (unsigned char cw, unsigned char *chs, unsigned char *prescale) {
 	*chs = cw>>4;
-	*prescale = cw&0b00000111;
+	*prescale = cw&0x07;
 }
 
 // sinus cardinalis
