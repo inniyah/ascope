@@ -2,47 +2,42 @@
 // Written by Alexander Mukhin.
 // Public domain.
 
-#include <avr/sleep.h>
-
 #define N 256 // samples in buffer
 #define MAXCHS 2 // maximum number of channels
-#define T 3 // number of samples to average
+#define T 1 // number of samples to average
 
 unsigned char buf[MAXCHS][N]; // data buffer
-unsigned char dly=0;
 unsigned char chs=1; // current number of channels
+unsigned char dt=128; // time difference between samples 
 volatile int n; // current sample number
 volatile unsigned char t; // trial number
 volatile unsigned int s; // sum of trial values
 volatile unsigned char ch; // current channel
 volatile unsigned char rdy; // ready flag
-unsigned char cw=(chs<<4)+dly; // control word
 
 #define sbi(port,bit) (port) |= (1<<(bit))
 #define cbi(port,bit) (port) &= ~(1<<(bit))
 
 ISR(ANALOG_COMP_vect) {
-	unsigned char prev; // previous register value
-	int d;
+	// disable analog comparator interrupts
+	// (they may occur while the timer is counting)
+	cbi(ACSR,ACIE);
 	// turn on acquisition LED
-	PORTB|=B00100000;
-	// wait
-	d = n*dly;
-	while (d) {
-		d--;
-		PORTB|=B00100000; // XXX
-	}
+	PORTB |= B00100000;
+	// reset counter
+	TCNT1 = 0;
+	// start timer
+	sbi(TCCR1B,CS10);
+}
+
+ISR(TIMER1_COMPA_vect) {
 	// start conversion
 	sbi(ADCSRA,ADSC);
+	// stop timer
+	cbi(TCCR1B,CS10);
 	// wait for the conversion to complete
-#if 0
-	while (!(ADCSRA&(1<<ADIF)));
-	// turn off ADIF flag
-	ADCSRA |= 1<<ADIF;
-#else
-	while(ADCSRA&(1<<ADSC));
-#endif
-	// save result
+	while (ADCSRA&(1<<ADSC));
+	// add result to the sum
 	s += ADCH;
 	++t;
 	if (t==T) {
@@ -50,40 +45,49 @@ ISR(ANALOG_COMP_vect) {
 		// clear sum and trial counter
 		s = 0;
 		t = 0;
-		// advance counters
+		// advance position
 		++n;
+		// increase delay
+		OCR1A += dt;
+		// is buffer filled?
 		if (n==N) {
+			// reset position and delay
 			n = 0;
+			OCR1A = dt;
+			// consider the next channel
 			++ch;
+			// any channels left?
 			if (ch<chs) {
-				// select next channel
-				prev = ADMUX;
-				ADMUX = (prev&B11110000)+(ch&B00001111);
+				// select the next channel
+				ADMUX = (ADMUX&B11110000)+(ch&B00001111);
 			} else {
 				// done with the last channel
-				// disable analog comparator interrupt
-				cbi(ACSR,ACIE);
 				// turn off acquisition LED
-				PORTB&=B11011111;
+				PORTB &= B11011111;
 				// raise ready flag
 				rdy = 1;
+				// we're done
+				return;
 			}
 		}
 	}
 	// clear AC interrupt flag
-	// (as it might be raised while this ISR is running)
+	// as it might be raised while this ISR is running
+	// (this helps keeping correct phase)
 	ACSR |= 1<<ACI;
+	// enable analog comparator interrupts
+	sbi(ACSR,ACIE);
 }
 
 void
 setup () {
-	// init ADC
+	// Init ADC
 	// select AVcc as voltage reference
 	cbi(ADMUX,REFS1);
 	sbi(ADMUX,REFS0);
 	// left-adjust output
 	sbi(ADMUX,ADLAR);
-	// set ADC clock prescale value to 4
+	// set ADC clock prescale value to 4 (this gives full 8-bit resolution)
 	sbi(ADCSRA,ADPS2);
 	// disable digital input buffer on all ADC pins (ADC0-ADC7)
 	DIDR0 = B11111111;
@@ -91,29 +95,35 @@ setup () {
 	sbi(ADCSRA,ADEN);
 	// start first conversion
 	sbi(ADCSRA,ADSC);
-	// init analog comparator
+	// Init analog comparator
 	// select intr on rising edge
 	sbi(ACSR,ACIS1);
 	sbi(ACSR,ACIS0);
 	// disable digital input buffer on AIN0 and AIN1
 	sbi(DIDR1,AIN1D);
 	sbi(DIDR1,AIN0D);
-	// init serial
+	// Stop Timer/Counter0, since we're not using it
+	// (disabling unused interrupts
+	// helps keep the phases of the channels as close as possible)
+	TCCR0B &= B11111000;
+	// Init Timer/Counter1
+	// reset control registers to the default values
+	TCCR1A = 0;
+	TCCR1B = 0;
+	TCCR1C = 0;
+	// enable interrupts on output compare
+	sbi(TIMSK1,OCIE1A);
+	// Init serial
 	Serial.begin(9600);
+	// Init LED
 	// we use LED 13 as an aquisition indicator
 	pinMode(13,OUTPUT);
 	PORTB&=B11011111;
-	// disable Timer/Counter0 interrupts
-	// (disabling unused interrupts
-	// helps keep the phases of the channels as close as possible)
-//	TIMSK0=0;
-sbi(PRR,PRTIM0);
 }
 
 void
 loop () {
 	unsigned char c;
-	int k;
 	// clear ready flag
 	rdy = 0;
 	// clear sum and trial counter
@@ -122,33 +132,29 @@ loop () {
 	// select channel 0
 	ch = 0;
 	ADMUX &= B11110000;
-	// set initial position
+	// set initial position and delay
 	n = 0;
+	OCR1A = dt;
 	// enable analog comparator interrupt
 	sbi(ACSR,ACIE);
-	// enable sleep mode
-	sbi(SMCR,SE);
 	// wait for the data to be ready
-	while (!rdy)
-//		sleep_cpu();
-	// disable sleep mode
-	cbi(SMCR,SE);
+	while (!rdy);
 	// write out data
 	Serial.write(0); // sync
-	Serial.write(cw); // report current control word
+	Serial.write(chs); // report current number of channels
+	Serial.write(dt); // report current time step
 	for (ch=0; ch<chs; ++ch)
-		for (k=0; k<N; ++k) {
-			c = buf[ch][k];
+		for (n=0; n<N; ++n) {
+			c = buf[ch][n];
 			if (c==0)
 				c = 1;
 	    		Serial.write(c);
 		}
 	// wait for transmit to complete
 	Serial.flush();
-	// read and parse the new control word, if any
+	// read new settings, if any
 	if (Serial.available()) {
-		cw = Serial.read();
-		dly = cw&B00001111;
-		chs = cw>>4;
+		chs = Serial.read();
+		dt = Serial.read();
 	}
 }
