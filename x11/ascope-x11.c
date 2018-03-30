@@ -11,7 +11,7 @@
 #define V_MAX 5.0 // voltage for ADC reading 255
 #define VDIV 1.0 // horizontal grid step in volts per division
 #define SDIV 8 // vertical grid step in samples per division
-#define POLLTIMO 500 // poll timeout in milliseconds
+#define POLLTIMO 2000 // poll timeout in milliseconds
 #define ODEV "/dev/ttyACM0" // oscilloscope device file
 
 #include <stdio.h>

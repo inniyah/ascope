@@ -6,11 +6,14 @@
 
 #define N 256 // samples in buffer
 #define MAXCHS 2 // maximum number of channels
+#define T 3 // number of samples to average
 
 unsigned char buf[MAXCHS][N]; // data buffer
 unsigned char dly=0;
 unsigned char chs=1; // current number of channels
 volatile int n; // current sample number
+volatile unsigned char t; // trial number
+volatile unsigned int s; // sum of trial values
 volatile unsigned char ch; // current channel
 volatile unsigned char rdy; // ready flag
 unsigned char cw=(chs<<4)+dly; // control word
@@ -20,44 +23,51 @@ unsigned char cw=(chs<<4)+dly; // control word
 
 ISR(ANALOG_COMP_vect) {
 	unsigned char prev; // previous register value
-	int t;
+	int d;
 	// turn on acquisition LED
 	PORTB|=B00100000;
 	// wait
-	t = n*dly;
-	while (t) {
-		t--;
+	d = n*dly;
+	while (d) {
+		d--;
 		PORTB|=B00100000; // XXX
 	}
 	// start conversion
 	sbi(ADCSRA,ADSC);
 	// wait for the conversion to complete
-#if 1
+#if 0
 	while (!(ADCSRA&(1<<ADIF)));
 	// turn off ADIF flag
 	ADCSRA |= 1<<ADIF;
 #else
-	while(ADCSRA&(1<<ADSC))
+	while(ADCSRA&(1<<ADSC));
 #endif
 	// save result
-	buf[ch][n] = ADCH;
-	// advance counters
-	++n;
-	if (n==N) {
-		n = 0;
-		++ch;
-		if (ch<chs) {
-			// select next channel
-			prev = ADMUX;
-			ADMUX = (prev&B11110000)+(ch&B00001111);
-		} else {
-			// done with the last channel
-			// disable analog comparator interrupt
-			cbi(ACSR,ACIE);
-			// turn off acquisition LED
-			PORTB&=B11011111;
-			// raise ready flag
-			rdy = 1;
+	s += ADCH;
+	++t;
+	if (t==T) {
+		buf[ch][n] = s/T;
+		// clear sum and trial counter
+		s = 0;
+		t = 0;
+		// advance counters
+		++n;
+		if (n==N) {
+			n = 0;
+			++ch;
+			if (ch<chs) {
+				// select next channel
+				prev = ADMUX;
+				ADMUX = (prev&B11110000)+(ch&B00001111);
+			} else {
+				// done with the last channel
+				// disable analog comparator interrupt
+				cbi(ACSR,ACIE);
+				// turn off acquisition LED
+				PORTB&=B11011111;
+				// raise ready flag
+				rdy = 1;
+			}
 		}
 	}
 	// clear AC interrupt flag
@@ -96,7 +106,8 @@ setup () {
 	// disable Timer/Counter0 interrupts
 	// (disabling unused interrupts
 	// helps keep the phases of the channels as close as possible)
-	TIMSK0=0;
+//	TIMSK0=0;
+sbi(PRR,PRTIM0);
 }
 
 void
@@ -105,6 +116,9 @@ loop () {
 	int k;
 	// clear ready flag
 	rdy = 0;
+	// clear sum and trial counter
+	s = 0;
+	t = 0;
 	// select channel 0
 	ch = 0;
 	ADMUX &= B11110000;
@@ -116,7 +130,7 @@ loop () {
 	sbi(SMCR,SE);
 	// wait for the data to be ready
 	while (!rdy)
-		sleep_cpu();
+//		sleep_cpu();
 	// disable sleep mode
 	cbi(SMCR,SE);
 	// write out data
