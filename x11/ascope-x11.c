@@ -11,7 +11,7 @@
 #define V_MAX 5.0 // voltage for ADC reading 255
 #define VDIV 1.0 // horizontal grid step in volts per division
 #define SDIV 8 // vertical grid step in samples per division
-#define POLLTIMO 2000 // poll timeout in milliseconds
+#define POLLTIMO 5000 // poll timeout in milliseconds
 #define ODEV "/dev/ttyACM0" // oscilloscope device file
 
 #include <stdio.h>
@@ -75,23 +75,10 @@ mkosc (Display *dpy, Pixmap pm, GC gc, float buf[MAXCHS][N], int chs, int Z) {
 	}
 }
 
-// get sampling rate in ksps for the given delay time
+// return time step between samples in microseconds
 float
-ksps (int dly) {
-	return 16000.0/(13*(1<<dly));
-}
-
-// make oscilloscope control word
-unsigned char
-mkcw (unsigned char chs, unsigned char dly) {
-	return (chs<<4)+(0x0f&dly);
-}
-
-// parse oscilloscope control word
-void
-parsecw (unsigned char cw, unsigned char *chs, unsigned char *dly) {
-	*chs = cw>>4;
-	*dly = cw&0x0f;
+dtus (int dt) {
+	return dt/16.0;
 }
 
 // sinus cardinalis
@@ -110,9 +97,8 @@ static float sinctbl[MAXP+1][N*N];
 int
 main (void) {
 	unsigned char rbuf[MAXCHS][N]; // raw data buffer
-	unsigned char cw; // oscilloscope control word
-	unsigned char dly; // delay XXX
 	unsigned char chs; // number of channels
+	unsigned char dt; // time step between samples
 	unsigned char ch; // current channel
 	unsigned char c; // data sample
 	float sbuf[MAXCHS][N]; // raw data scaled to [0,1]
@@ -219,10 +205,9 @@ main (void) {
 			read(fd,&c,1);
 			if (c==0) {
 				// got sync
-				// read and parse control word
-				read(fd,&cw,1);
-				parsecw(cw,&chs,&dly);
-printf("dly=%d\n",dly);
+				// read current device settings
+				read(fd,&chs,1);
+				read(fd,&dt,1);
 				// read data buffers
 				for (ch=0; ch<chs; ++ch)
 					for (m=0; m<N; ++m) {
@@ -263,13 +248,13 @@ printf("dly=%d\n",dly);
 				// draw status line
 				if (Z==1)
 					snprintf(sl,256,\
-					"%.1f V/div, %.0f us/div", \
-					VDIV,SDIV*1000/ksps(dly));
+					"%d chan%s, %.1f V/div, %.1f us/div", \
+					chs,(chs>1)?"s":"",VDIV,SDIV*dtus(dt));
 				else
 					snprintf(sl,256,\
-					"%.1f V/div, %.0f us/div, " \
+					"%d chan%s, %.1f V/div, %.1f us/div, " \
 					"%dx (%s)", \
-					VDIV,SDIV*1000/ksps(dly), \
+					chs,(chs>1)?"s":"",VDIV,SDIV*dtus(dt), \
 					Z,(mode&O_LIN)?"linear":"sinc");
 				XSetForeground(dpy,gc,0xffffff);
 				XDrawString(dpy,pm,gc,0,H-1,sl,strlen(sl));
@@ -296,41 +281,51 @@ printf("dly=%d\n",dly);
 					return 0;
 				}
 				if (rdy && mode&O_RUN && ks==XK_Down) {
-					// decrease sampling rate
-					if (dly<15) {
-						++dly;
-						// make control word
-						cw = mkcw(chs,dly);
-						// send it to the device
-						write(fd,&cw,1);
-						tcflush(fd,TCOFLUSH);
+					// decrease time step
+					if (evt.xkey.state&ControlMask) {
+						// coarse step
+						if (dt>10)
+							dt -= 10;
+					} else {
+						// fine step
+						if (dt>1)
+							--dt;
 					}
+					// send settings to the device
+					write(fd,&chs,1);
+					write(fd,&dt,1);
+					tcflush(fd,TCOFLUSH);
 				}
 				if (rdy && mode&O_RUN && ks==XK_Up) {
-					// increase sampling rate
-					if (dly>0) {
-						--dly;
-						// make control word
-						cw = mkcw(chs,dly);
-						// send it to the device
-						write(fd,&cw,1);
-						tcflush(fd,TCOFLUSH);
+					// increase time step
+					if (evt.xkey.state&ControlMask) {
+						// coarse step
+						if (dt<246)
+							dt += 10;
+					} else {
+						// fine step
+						if (dt<255)
+							++dt;
 					}
+					// send settings to the device
+					write(fd,&chs,1);
+					write(fd,&dt,1);
+					tcflush(fd,TCOFLUSH);
 				}
 				if (rdy && mode&O_RUN && ks==XK_1) {
-					// start single-channel mode
+					// use 1 channel
 					chs = 1;
-					cw = mkcw(chs,dly);
-					// send it to the device
-					write(fd,&cw,1);
+					// send settings to the device
+					write(fd,&chs,1);
+					write(fd,&dt,1);
 					tcflush(fd,TCOFLUSH);
 				}
 				if (rdy && mode&O_RUN && ks==XK_2) {
-					// start two-channel mode
+					// use 2 channels
 					chs = 2;
-					cw = mkcw(chs,dly);
-					// send it to the device
-					write(fd,&cw,1);
+					// send settings to the device
+					write(fd,&chs,1);
+					write(fd,&dt,1);
 					tcflush(fd,TCOFLUSH);
 				}
 				if (rdy && mode&O_RUN && ks==XK_Left) {
@@ -391,7 +386,7 @@ printf("dly=%d\n",dly);
 				y = evt.xbutton.y;
 				if (x<W && y<H) {
 					float t,v;
-					t = (x/W)*N*1000.0/(Z*ksps(dly));
+					t = (x/W)*N*Z*dtus(dt);
 					v = V_MAX-(V_MAX-V_MIN)*y/(H-1);
 					printf("%.1f us, %.2f V\n",t,v);
 				}
