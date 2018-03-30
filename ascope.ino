@@ -9,6 +9,7 @@
 unsigned char buf[MAXCHS][N]; // data buffer
 unsigned char chs=1; // current number of channels
 unsigned char dt=128; // time difference between samples 
+
 volatile int n; // current sample number
 volatile unsigned char t; // trial number
 volatile unsigned int s; // sum of trial values

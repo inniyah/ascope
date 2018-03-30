@@ -4,7 +4,6 @@
 
 #define N 256 // number of samples in buffer
 #define MAXCHS 2 // maximum number of channels
-#define MAXP 8 // maximum zoom power, should not exceed log2(N)
 #define W 512 // window width
 #define H 256 // window height
 #define V_MIN -5.0 // voltage for ADC reading 0
@@ -29,11 +28,9 @@
 #include <math.h>
 #include <string.h>
 
-#define M_PI 3.14159265358979323846
-
 // draw oscillogram on a pixmap
 void
-mkosc (Display *dpy, Pixmap pm, GC gc, float buf[MAXCHS][N], int chs, int Z) {
+mkosc (Display *dpy, Pixmap pm, GC gc, float buf[MAXCHS][N], int chs) {
 	const int clrs[MAXCHS] = {0x00ff00,0xff0000}; // channel colors
 	int ch; // current channel
 	int i; // counter
@@ -47,8 +44,8 @@ mkosc (Display *dpy, Pixmap pm, GC gc, float buf[MAXCHS][N], int chs, int Z) {
 		y = i*VDIV*H/(V_MAX-V_MIN)-1;
 		XDrawLine(dpy,pm,gc,0,y,W-1,y);
 	}
-	for (i=1; i<=N/(Z*SDIV); ++i) {
-		x = i*Z*SDIV*W/N-1;
+	for (i=1; i<=N/SDIV; ++i) {
+		x = i*SDIV*W/N-1;
 		XDrawLine(dpy,pm,gc,x,0,x,H-1);
 	}	
 	// draw zero axis
@@ -81,36 +78,19 @@ dtus (int dt) {
 	return dt/16.0;
 }
 
-// sinus cardinalis
-float
-sinc (float x) {
-	const float eps=0.001;
-	if (fabs(x)>eps)
-		return sinf(x)/x;
-	else
-		return 1.0;
-}
-
-// precomputed sinc tables
-static float sinctbl[MAXP+1][N*N];
-
 int
 main (void) {
 	unsigned char rbuf[MAXCHS][N]; // raw data buffer
 	unsigned char chs; // number of channels
 	unsigned char dt; // time step between samples
-	unsigned char ch; // current channel
 	unsigned char c; // data sample
+	int ch; // channel index
+	int n; // sample index
 	float sbuf[MAXCHS][N]; // raw data scaled to [0,1]
-	float zbuf[MAXCHS][N],*zptr; // interpolated (zoomed) data and a pointer
-	int p,Z; // zoom power and factor (Z=2^p)
-	int k,l,m; // indices
-	float *tptr; // pointer to sinc tables
-	float s; // sum
 	int fd; // oscilloscope device file descriptor
 	struct termios t; // terminal structure
 	struct pollfd pfds[2]; // poll structures
-	enum {O_LIN=0x1,O_RUN=0x2} mode=3; // mode of operation
+	enum {O_RUN=0x1} mode=1; // mode of operation
 	char sl[256]; // buffer for status line text
 	int rdy=0; // ready flag, means oscillogram is received and displayed
 	// X stuff
@@ -122,20 +102,6 @@ main (void) {
 	Pixmap pm;
 	KeySym ks;
 
-	// fill sinc tables
-	for (p=0; p<=MAXP; ++p) {
-		Z = 1<<p;
-		tptr = sinctbl[p];
-		for (k=0; k<N/Z; ++k)
-			for (l=0; l<Z; ++l)
-				for (m=0; m<N; ++m)
-					*tptr++ = sinc(M_PI*((float)l/Z+k-m));
-	}
-
-	// init zoom factors
-	p = 0;
-	Z = 1<<p;
-
 	// open device
 	fd = open(ODEV,O_RDWR);
 	if (fd==-1) {
@@ -144,14 +110,10 @@ main (void) {
 	}
 	// put it to non-canonical mode
 	tcgetattr(fd,&t);
-#if 0
 	t.c_iflag &= ~(ICRNL|IXON);
 	t.c_oflag &= ~OPOST;
 	t.c_cflag &= ~HUPCL;
 	t.c_lflag &= ~(ICANON|ECHO|IEXTEN|ISIG);
-#else
-	cfmakeraw(&t);
-#endif
 	tcsetattr(fd,TCSANOW,&t);
 
 	// init X
@@ -188,7 +150,7 @@ main (void) {
 			// poll() timed out
 			if (mode&O_RUN) {
 				// clear previous oscillogram
-				mkosc(dpy,pm,gc,NULL,chs,Z);
+				mkosc(dpy,pm,gc,NULL,chs);
 				// send itself an exposure event
 				evt.type = Expose;
 				XSendEvent(dpy,win,False,0,&evt);
@@ -210,52 +172,18 @@ main (void) {
 				read(fd,&dt,1);
 				// read data buffers
 				for (ch=0; ch<chs; ++ch)
-					for (m=0; m<N; ++m) {
+					for (n=0; n<N; ++n) {
 						read(fd,&c,1);
-						rbuf[ch][m] = c;
+						rbuf[ch][n] = c;
 						// fill scaled buffer
-						sbuf[ch][m] = c/255.0;
+						sbuf[ch][n] = c/255.0;
 					}
-				// do interpolation (zoom)
-				if (mode&O_LIN) {
-					// linear interpolation
-					for (ch=0; ch<chs; ++ch) {
-					zptr = zbuf[ch];
-					for (k=0; k<N/Z; ++k)
-						for (l=0; l<Z; ++l) {
-							float t=(float)l/Z;
-							*zptr++ = \
-							sbuf[ch][k]*(1-t)+\
-							sbuf[ch][k+1]*t;
-						}
-					}
-				} else {
-					// sinc interpolation
-					for (ch=0; ch<chs; ++ch) {
-					zptr = zbuf[ch];
-					tptr = sinctbl[p];
-					for (k=0; k<N/Z; ++k)
-						for (l=0; l<Z; ++l) {
-							s = 0.0;
-							for (m=0; m<N; ++m)
-					s += (sbuf[ch][m]-sbuf[ch][0])**tptr++;
-					*zptr++ = s+sbuf[ch][0];
-							}
-					}
-				}
 				// draw oscillogram
-				mkosc(dpy,pm,gc,zbuf,chs,Z);
+				mkosc(dpy,pm,gc,sbuf,chs);
 				// draw status line
-				if (Z==1)
-					snprintf(sl,256,\
-					"%d chan%s, %.1f V/div, %.1f us/div", \
-					chs,(chs>1)?"s":"",VDIV,SDIV*dtus(dt));
-				else
-					snprintf(sl,256,\
-					"%d chan%s, %.1f V/div, %.1f us/div, " \
-					"%dx (%s)", \
-					chs,(chs>1)?"s":"",VDIV,SDIV*dtus(dt), \
-					Z,(mode&O_LIN)?"linear":"sinc");
+				snprintf(sl,256,\
+				"%d chan%s, %.1f V/div, %.1f us/div", \
+				chs,(chs>1)?"s":"",VDIV,SDIV*dtus(dt));
 				XSetForeground(dpy,gc,0xffffff);
 				XDrawString(dpy,pm,gc,0,H-1,sl,strlen(sl));
 				// send itself an exposure event
@@ -328,24 +256,6 @@ main (void) {
 					write(fd,&dt,1);
 					tcflush(fd,TCOFLUSH);
 				}
-				if (rdy && mode&O_RUN && ks==XK_Left) {
-					// decrease zoom power
-					if (p>0) {
-						--p;
-						Z = 1<<p;
-					}
-				}
-				if (rdy && mode&O_RUN && ks==XK_Right) {
-					// increase zoom power
-					if (p<MAXP) {
-						++p;
-						Z = 1<<p;
-					}
-				}
-				if (rdy && mode&O_RUN && p && ks==XK_i) {
-					// toggle interpolation mode
-					mode ^= O_LIN;
-				}
 				if (ks==XK_space) {
 					// toggle run mode
 					mode ^= O_RUN;
@@ -373,9 +283,9 @@ main (void) {
 				if (rdy && ks==XK_d) {
 					// dump raw buffer to stderr
 					for (ch=0; ch<chs; ++ch)
-						for (k=0; k<N; ++k)
+						for (n=0; n<N; ++n)
 							fprintf(stderr,\
-							"%hhu\n",rbuf[ch][k]);
+							"%hhu\n",rbuf[ch][n]);
 					fflush(stderr);
 				}
 			}
@@ -386,7 +296,7 @@ main (void) {
 				y = evt.xbutton.y;
 				if (x<W && y<H) {
 					float t,v;
-					t = (x/W)*N*Z*dtus(dt);
+					t = (x/W)*N*dtus(dt);
 					v = V_MAX-(V_MAX-V_MIN)*y/(H-1);
 					printf("%.1f us, %.2f V\n",t,v);
 				}

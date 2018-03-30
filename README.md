@@ -2,30 +2,29 @@
 An Arduino oscilloscope.
 
 ## Features
-* up to 300 kSps sampling rate,
+* up to 16 MSps equivalent-time sampling rate,
 * 8-bit resolution,
-* linear and sinc interpolation up to 256x.
+* multiple channels.
 
 ## Hardware setup
-The oscilloscope takes its input from the A0 pin. Aquisition is
-triggered when voltage on the AIN0 pin first exceeds that on the AIN1
-pin.
+The oscilloscope takes its input from the analog pins A0, A1, etc.
+Aquisition is triggered when voltage on the AIN0 pin first exceeds that
+on the AIN1 pin.
 
 ## Controls
-key       | action
-----------|-------
-`↓` `↑`   | Divide or multiply the sampling rate by 2
-`←` `→`   | Divide or multiply the zoom factor by 2
-`i`       | Toggle interpolation mode (linear or sinc)
-`<space>` | Freeze or thaw
-`d`       | Dump the raw data to `stderr`
-`q`       | Quit
+key                   | action
+----------------------|-------
+`↓` `↑`               | Decrease or increase the time step by 1/16 μs.
+`Ctrl`+`↓` `Ctrl`+`↑` | Decrease or increase the time step by 1 μs.
+`<space>`             | Freeze or thaw
+`d`                   | Dump the raw data to `stderr`
+`q`                   | Quit
 
 ## Examples
 A __ kHz sinewave.
 ![](docs/sin.png)
 
-A __ kHz square waveform.
+A __ kHz multivibrator output along with the corresponding base voltage.
 ![](docs/sq.png)
 
 ## Customization
