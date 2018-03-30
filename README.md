@@ -16,6 +16,7 @@ key                   | action
 ----------------------|-------
 `↓` `↑`               | Decrease or increase the time step by 1/16 μs.
 `Ctrl`+`↓` `Ctrl`+`↑` | Decrease or increase the time step by 1 μs.
+`1`, `2`, etc.        | Use 1, 2, or more (if compiled) channels
 `<space>`             | Freeze or thaw
 `d`                   | Dump the raw data to `stderr`
 `q`                   | Quit
