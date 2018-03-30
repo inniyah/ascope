@@ -211,11 +211,11 @@ main (void) {
 				if (rdy && mode&O_RUN && ks==XK_Down) {
 					// decrease time step
 					if (evt.xkey.state&ControlMask) {
-						// coarse step
-						if (dt>10)
-							dt -= 10;
+						// coarse tuning
+						if (dt>16)
+							dt -= 16;
 					} else {
-						// fine step
+						// fine tuning
 						if (dt>1)
 							--dt;
 					}
@@ -227,11 +227,11 @@ main (void) {
 				if (rdy && mode&O_RUN && ks==XK_Up) {
 					// increase time step
 					if (evt.xkey.state&ControlMask) {
-						// coarse step
-						if (dt<246)
-							dt += 10;
+						// coarse tuning
+						if (dt<240)
+							dt += 16;
 					} else {
-						// fine step
+						// fine tuning
 						if (dt<255)
 							++dt;
 					}
