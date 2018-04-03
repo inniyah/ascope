@@ -75,7 +75,7 @@ mkosc (Display *dpy, Pixmap pm, GC gc, float buf[MAXCHS][N], int chs) {
 
 // return time step between samples in microseconds
 float
-dtus (int dt) {
+dt2us (int dt) {
 	return dt/16.0;
 }
 
@@ -84,6 +84,7 @@ main (void) {
 	unsigned char rbuf[MAXCHS][N]; // raw data buffer
 	unsigned char chs; // number of channels
 	unsigned char dt; // time step between samples
+	unsigned char slope; // trigger slope
 	unsigned char c; // data sample
 	int ch; // channel index
 	int n; // sample index
@@ -171,6 +172,7 @@ main (void) {
 				// read current device settings
 				read(fd,&chs,1);
 				read(fd,&dt,1);
+				read(fd,&slope,1);
 				// read data buffers
 				for (ch=0; ch<chs; ++ch)
 					for (n=0; n<N; ++n) {
@@ -184,7 +186,7 @@ main (void) {
 				// draw status line
 				snprintf(str,256,\
 				"%d chan%s, %.1f V/div, %.1f us/div", \
-				chs,(chs>1)?"s":"",VDIV,SDIV*dtus(dt));
+				chs,(chs>1)?"s":"",VDIV,SDIV*dt2us(dt));
 				XSetForeground(dpy,gc,0xffffff);
 				XDrawString(dpy,pm,gc,0,H-1,str,strlen(str));
 				// send itself an exposure event
@@ -209,6 +211,20 @@ main (void) {
 					// quit
 					return 0;
 				}
+				if (rdy && mode&O_RUN && isdigit(str[0])) {
+					// set number of channels
+					str[1] = 0;
+					chs = atoi(str);
+					if (chs==0)
+						chs = 1;
+					if (chs>MAXCHS)
+						chs = MAXCHS;
+					// send settings to the device
+					write(fd,&chs,1);
+					write(fd,&dt,1);
+					write(fd,&slope,1);
+					tcflush(fd,TCOFLUSH);
+				}
 				if (rdy && mode&O_RUN && ks==XK_Down) {
 					// decrease time step
 					if (evt.xkey.state&ControlMask) {
@@ -223,6 +239,7 @@ main (void) {
 					// send settings to the device
 					write(fd,&chs,1);
 					write(fd,&dt,1);
+					write(fd,&slope,1);
 					tcflush(fd,TCOFLUSH);
 				}
 				if (rdy && mode&O_RUN && ks==XK_Up) {
@@ -239,15 +256,25 @@ main (void) {
 					// send settings to the device
 					write(fd,&chs,1);
 					write(fd,&dt,1);
+					write(fd,&slope,1);
 					tcflush(fd,TCOFLUSH);
 				}
-				if (rdy && mode&O_RUN && isdigit(str[0])) {
-					// set number of channels
-					str[1] = 0;
-					chs = atoi(str);
+				if (rdy && mode&O_RUN && ks==XK_slash) {
+					// trigger on rising edge
+					slope = 1;
 					// send settings to the device
 					write(fd,&chs,1);
 					write(fd,&dt,1);
+					write(fd,&slope,1);
+					tcflush(fd,TCOFLUSH);
+				}
+				if (rdy && mode&O_RUN && ks==XK_backslash) {
+					// trigger on falling edge
+					slope = 0;
+					// send settings to the device
+					write(fd,&chs,1);
+					write(fd,&dt,1);
+					write(fd,&slope,1);
 					tcflush(fd,TCOFLUSH);
 				}
 				if (ks==XK_space) {
@@ -290,7 +317,7 @@ main (void) {
 				y = evt.xbutton.y;
 				if (x<W && y<H) {
 					float t,v;
-					t = (x/W)*N*dtus(dt);
+					t = (x/W)*N*dt2us(dt);
 					v = V_MAX-(V_MAX-V_MIN)*y/(H-1);
 					printf("%.1f us, %.2f V\n",t,v);
 				}

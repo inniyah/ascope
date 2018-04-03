@@ -7,7 +7,8 @@
 
 unsigned char buf[MAXCHS][N]; // data buffer
 unsigned char chs=1; // current number of channels
-unsigned char dt=16; // time difference between samples 
+unsigned char dt=16; // time difference between samples
+unsigned char slope=1; // trigger on rising (1) or falling (0) edge
 
 volatile int n; // current sample number
 volatile unsigned char ch; // current channel
@@ -90,9 +91,8 @@ setup () {
 	// enable ADC
 	sbi(ADCSRA,ADEN);
 	// Init analog comparator
-	// select intr on rising edge
+	// this trigger mode selection bit is always set
 	sbi(ACSR,ACIS1);
-	sbi(ACSR,ACIS0);
 	// disable digital input buffer on AIN0 and AIN1
 	sbi(DIDR1,AIN1D);
 	sbi(DIDR1,AIN0D);
@@ -124,6 +124,13 @@ loop () {
 	// set initial position and delay
 	n = 0;
 	OCR1B = dt;
+	// set trigger slope
+	if (slope)
+		// trigger on rising edge
+		sbi(ACSR,ACIS0);
+	else
+		// trigger on falling edge
+		cbi(ACSR,ACIS0);
 	// enable analog comparator interrupt
 	sbi(ACSR,ACIE);
 	// wait for the data to be ready
@@ -132,6 +139,7 @@ loop () {
 	Serial.write(0); // sync
 	Serial.write(chs); // report current number of channels
 	Serial.write(dt); // report current time step
+	Serial.write(slope); // report current trigger slope
 	for (ch=0; ch<chs; ++ch)
 		for (n=0; n<N; ++n) {
 			c = buf[ch][n];
@@ -144,6 +152,13 @@ loop () {
 	// read new settings, if any
 	if (Serial.available()) {
 		chs = Serial.read();
+		if (chs==0)
+			chs = 1;
+		if (chs>MAXCHS)
+			chs = MAXCHS;
 		dt = Serial.read();
+		if (dt==0)
+			dt = 1;
+		slope = Serial.read()&1;
 	}
 }
