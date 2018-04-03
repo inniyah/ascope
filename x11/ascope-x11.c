@@ -27,6 +27,7 @@
 #include <stdlib.h>
 #include <math.h>
 #include <string.h>
+#include <ctype.h>
 
 // draw oscillogram on a pixmap
 void
@@ -91,7 +92,7 @@ main (void) {
 	struct termios t; // terminal structure
 	struct pollfd pfds[2]; // poll structures
 	enum {O_RUN=0x1} mode=1; // mode of operation
-	char sl[256]; // buffer for status line text
+	char str[256]; // string buffer (for status line text and keyboard input)
 	int rdy=0; // ready flag, means oscillogram is received and displayed
 	// X stuff
 	Display *dpy;
@@ -181,11 +182,11 @@ main (void) {
 				// draw oscillogram
 				mkosc(dpy,pm,gc,sbuf,chs);
 				// draw status line
-				snprintf(sl,256,\
+				snprintf(str,256,\
 				"%d chan%s, %.1f V/div, %.1f us/div", \
 				chs,(chs>1)?"s":"",VDIV,SDIV*dtus(dt));
 				XSetForeground(dpy,gc,0xffffff);
-				XDrawString(dpy,pm,gc,0,H-1,sl,strlen(sl));
+				XDrawString(dpy,pm,gc,0,H-1,str,strlen(str));
 				// send itself an exposure event
 				// to display the oscillogram
 				evt.type = Expose;
@@ -203,7 +204,7 @@ main (void) {
 				XCopyArea(dpy,pm,win,gc,0,0,W,H,0,0);
 			}
 			if (evt.type==KeyPress) {
-				XLookupString(&evt.xkey,NULL,0,&ks,NULL);
+				XLookupString(&evt.xkey,str,1,&ks,NULL);
 				if (ks==XK_q) {
 					// quit
 					return 0;
@@ -240,17 +241,10 @@ main (void) {
 					write(fd,&dt,1);
 					tcflush(fd,TCOFLUSH);
 				}
-				if (rdy && mode&O_RUN && ks==XK_1) {
-					// use 1 channel
-					chs = 1;
-					// send settings to the device
-					write(fd,&chs,1);
-					write(fd,&dt,1);
-					tcflush(fd,TCOFLUSH);
-				}
-				if (rdy && mode&O_RUN && ks==XK_2) {
-					// use 2 channels
-					chs = 2;
+				if (rdy && mode&O_RUN && isdigit(str[0])) {
+					// set number of channels
+					str[1] = 0;
+					chs = atoi(str);
 					// send settings to the device
 					write(fd,&chs,1);
 					write(fd,&dt,1);
