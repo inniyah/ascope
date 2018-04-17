@@ -7,7 +7,7 @@
 
 unsigned char buf[MAXCHS][N]; // data buffer
 unsigned char chs=1; // current number of channels
-unsigned char dt=16; // time difference between samples
+unsigned char dt=1; // time difference between samples
 unsigned char slope=1; // trigger on rising (1) or falling (0) edge
 
 volatile int n; // current sample number
@@ -77,8 +77,11 @@ setup () {
 	sbi(ADMUX,REFS0);
 	// left-adjust output
 	sbi(ADMUX,ADLAR);
-	// set ADC clock prescale value to 4 (this gives full 8-bit resolution)
+	// set ADC clock prescale value to 16 (this gives full 8-bit resolution)
 	sbi(ADCSRA,ADPS2);
+	cbi(ADCSRA,ADPS1);
+	cbi(ADCSRA,ADPS0);
+//	ADCSRA = (ADCSRA&B11111000)+4;
 	// disable digital input buffer on all ADC pins (ADC0-ADC7)
 	DIDR0 = B11111111;
 	// set auto-trigger on Timer/Counter1 Compare Match B
@@ -111,6 +114,22 @@ setup () {
 	// we use LED 13 as an aquisition indicator
 	pinMode(13,OUTPUT);
 	PORTB&=B11011111;
+#if 1
+// enable calibration PWM output
+// clear TC2 control registers
+TCCR2A = 0;
+TCCR2B = 0;
+// set output compare register
+OCR2A = 40;
+// toggle OC2A on compare
+sbi(TCCR2A,COM2A0);
+// enable CTC (clear counter on compare) mode
+sbi(TCCR2A,WGM21);
+// use PB3 as output
+pinMode(11,OUTPUT);
+// start timer at full clock speed
+sbi(TCCR2B,CS20);
+#endif
 }
 
 void
