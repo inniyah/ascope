@@ -18,13 +18,8 @@ volatile unsigned char rdy; // ready flag
 #define cbi(port,bit) (port) &= ~(1<<(bit))
 
 ISR(ANALOG_COMP_vect) {
-	// reset counter
-	TCNT1 = 0;
 	// start timer
 	sbi(TCCR1B,CS10);
-	// disable analog comparator interrupts
-	// (they may occur while the timer is counting)
-	cbi(ACSR,ACIE);
 	// turn on acquisition LED
 	PORTB |= B00100000;
 }
@@ -32,6 +27,8 @@ ISR(ANALOG_COMP_vect) {
 ISR(ADC_vect) {
 	// stop timer
 	cbi(TCCR1B,CS10);
+	// reset counter
+	TCNT1 = 0;
 	// clear TC1 output compare B match flag
 	sbi(TIFR1,OCF1B);
 	// save conversion result 
@@ -55,6 +52,8 @@ ISR(ADC_vect) {
 			// done with the last channel
 			// turn off acquisition LED
 			PORTB &= B11011111;
+			// disable AC interrupts
+			cbi(ACSR,ACIE);
 			// raise ready flag
 			rdy = 1;
 			// we're done
@@ -62,11 +61,12 @@ ISR(ADC_vect) {
 		}
 	}
 	// clear AC interrupt flag
-	// as it might be raised while this ISR is running
-	// (this helps keeping steady phase)
+	// (we don't want to process a stale pending interrupt)
 	sbi(ACSR,ACI);
-	// enable analog comparator interrupts
-	sbi(ACSR,ACIE);
+	// enable interrupts,
+	// so we can process the next AC interrupt immediately,
+	// before epilogue ends
+//	sei();
 }
 
 void
@@ -78,10 +78,12 @@ setup () {
 	// left-adjust output
 	sbi(ADMUX,ADLAR);
 	// set ADC clock prescale value to 16 (this gives full 8-bit resolution)
+/*
 	sbi(ADCSRA,ADPS2);
 	cbi(ADCSRA,ADPS1);
 	cbi(ADCSRA,ADPS0);
-//	ADCSRA = (ADCSRA&B11111000)+4;
+*/
+ADCSRA = (ADCSRA&B11111000)+2;
 	// disable digital input buffer on all ADC pins (ADC0-ADC7)
 	DIDR0 = B11111111;
 	// set auto-trigger on Timer/Counter1 Compare Match B
@@ -119,8 +121,13 @@ setup () {
 // clear TC2 control registers
 TCCR2A = 0;
 TCCR2B = 0;
+TIMSK2 = 0;
 // set output compare register
-OCR2A = 40;
+//OCR2A = 63; // 125 kHz
+//OCR2A = 31; // 250 kHz
+//OCR2A = 23; // 333 kHz
+OCR2A = 26;
+//OCR2A = 15; // 500 kHz
 // toggle OC2A on compare
 sbi(TCCR2A,COM2A0);
 // enable CTC (clear counter on compare) mode
