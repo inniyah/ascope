@@ -20,6 +20,8 @@ volatile unsigned char rdy; // ready flag
 ISR(ANALOG_COMP_vect) {
 	// start timer
 	sbi(TCCR1B,CS10);
+	// disable AC interrupts
+	cbi(ACSR,ACIE);
 	// turn on acquisition LED
 	PORTB |= B00100000;
 }
@@ -49,24 +51,32 @@ ISR(ADC_vect) {
 			// select the next channel
 			ADMUX = (ADMUX&B11110000)+(ch&B00001111);
 		} else {
+//cbi(ACSR,ACIE);
 			// done with the last channel
 			// turn off acquisition LED
 			PORTB &= B11011111;
-			// disable AC interrupts
-			cbi(ACSR,ACIE);
 			// raise ready flag
 			rdy = 1;
 			// we're done
 			return;
 		}
 	}
+#if 0
 	// clear AC interrupt flag
 	// (we don't want to process a stale pending interrupt)
 	sbi(ACSR,ACI);
+	// enable AC interrupts
+	sbi(ACSR,ACIE);
+#else
+unsigned char tmp=ACSR;
+//tmp|=(1<<ACI);
+tmp|=(1<<ACIE);
+ACSR=tmp;
+#endif
 	// enable interrupts,
 	// so we can process the next AC interrupt immediately,
 	// before epilogue ends
-//	sei();
+	sei();
 }
 
 void
@@ -124,9 +134,10 @@ TCCR2B = 0;
 TIMSK2 = 0;
 // set output compare register
 //OCR2A = 63; // 125 kHz
-//OCR2A = 31; // 250 kHz
+OCR2A = 31; // 250 kHz
 //OCR2A = 23; // 333 kHz
-OCR2A = 26;
+//OCR2A = 26;
+//OCR2A = 41;
 //OCR2A = 15; // 500 kHz
 // toggle OC2A on compare
 sbi(TCCR2A,COM2A0);
