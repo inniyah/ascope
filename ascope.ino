@@ -5,12 +5,11 @@
 #define N 256 // samples in buffer
 #define MAXCHS 2 // maximum number of channels
 
-extern "C" void clracif(void);
-
 unsigned char buf[MAXCHS][N]; // data buffer
 unsigned char chs=1; // current number of channels
 unsigned char dt=1; // time difference between samples
 unsigned char slope=1; // trigger on rising (1) or falling (0) edge
+unsigned char calib=63; // calibration setting (OCR2A)
 
 volatile int n; // current sample number
 volatile unsigned char ch; // current channel
@@ -62,19 +61,18 @@ ISR(ADC_vect) {
 			return;
 		}
 	}
-#if 1
-	// clear AC interrupt flag
+	// enable AC interrupts and clear AC interrupt flag as well
 	// (we don't want to process a stale pending interrupt)
+//	ACSR |= B00011000;
+	ACSR |= B00010000;
+	ACSR |= B00001000;
+//	sbi(ACSR,ACIE);
 //	sbi(ACSR,ACI);
-	// enable AC interrupts
-	sbi(ACSR,ACIE);
+//	sbi(ACSR,ACIE);
 	// enable interrupts,
 	// so we can process the next AC interrupt immediately,
 	// before epilogue ends
 	sei();
-#else
-clracif();
-#endif
 }
 
 void
@@ -131,11 +129,15 @@ TCCR2A = 0;
 TCCR2B = 0;
 TIMSK2 = 0;
 // set output compare register
+OCR2A = calib;
+//OCR2A = 127; // 62.5 kHz
 //OCR2A = 63; // 125 kHz
+//OCR2A = 50;
+//OCR2A = 41;
+//OCR2A = 35;
 //OCR2A = 31; // 250 kHz
-//OCR2A = 23; // 333 kHz
 //OCR2A = 26;
-OCR2A = 41;
+//OCR2A = 23; // 333 kHz
 //OCR2A = 19;
 //OCR2A = 15; // 500 kHz
 // toggle OC2A on compare
@@ -152,6 +154,10 @@ sbi(TCCR2B,CS20);
 void
 loop () {
 	unsigned char c;
+	// restart calibration output
+	cbi(TCCR2B,CS20);
+	OCR2A = calib;
+	sbi(TCCR2B,CS20);
 	// clear ready flag
 	rdy = 0;
 	// select channel 0
@@ -176,6 +182,7 @@ loop () {
 	Serial.write(chs); // report current number of channels
 	Serial.write(dt); // report current time step
 	Serial.write(slope); // report current trigger slope
+	Serial.write(calib); // report current calibration setting
 	for (ch=0; ch<chs; ++ch)
 		for (n=0; n<N; ++n) {
 			c = buf[ch][n];
@@ -196,5 +203,6 @@ loop () {
 		if (dt==0)
 			dt = 1;
 		slope = Serial.read()&1;
+		calib = Serial.read();
 	}
 }

@@ -85,6 +85,7 @@ main (void) {
 	unsigned char chs; // number of channels
 	unsigned char dt; // time step between samples
 	unsigned char slope; // trigger slope
+unsigned char calib;
 	unsigned char c; // data sample
 	int ch; // channel index
 	int n; // sample index
@@ -173,6 +174,7 @@ main (void) {
 				read(fd,&chs,1);
 				read(fd,&dt,1);
 				read(fd,&slope,1);
+				read(fd,&calib,1);
 				// read data buffers
 				for (ch=0; ch<chs; ++ch)
 					for (n=0; n<N; ++n) {
@@ -223,6 +225,7 @@ main (void) {
 					write(fd,&chs,1);
 					write(fd,&dt,1);
 					write(fd,&slope,1);
+					write(fd,&calib,1);
 					tcflush(fd,TCOFLUSH);
 				}
 				if (rdy && mode&O_RUN && ks==XK_Down) {
@@ -240,6 +243,7 @@ main (void) {
 					write(fd,&chs,1);
 					write(fd,&dt,1);
 					write(fd,&slope,1);
+					write(fd,&calib,1);
 					tcflush(fd,TCOFLUSH);
 				}
 				if (rdy && mode&O_RUN && ks==XK_Up) {
@@ -257,6 +261,7 @@ main (void) {
 					write(fd,&chs,1);
 					write(fd,&dt,1);
 					write(fd,&slope,1);
+					write(fd,&calib,1);
 					tcflush(fd,TCOFLUSH);
 				}
 				if (rdy && mode&O_RUN && ks==XK_slash) {
@@ -266,6 +271,29 @@ main (void) {
 					write(fd,&chs,1);
 					write(fd,&dt,1);
 					write(fd,&slope,1);
+					write(fd,&calib,1);
+					tcflush(fd,TCOFLUSH);
+				}
+				if (rdy && mode&O_RUN && ks==XK_minus) {
+					// lower calibration frequency
+					++calib;
+printf("calib=%d\n",calib);
+					// send settings to the device
+					write(fd,&chs,1);
+					write(fd,&dt,1);
+					write(fd,&slope,1);
+					write(fd,&calib,1);
+					tcflush(fd,TCOFLUSH);
+				}
+				if (rdy && mode&O_RUN && ks==XK_plus) {
+					// increase calibration frequency
+					--calib;
+printf("calib=%d\n",calib);
+					// send settings to the device
+					write(fd,&chs,1);
+					write(fd,&dt,1);
+					write(fd,&slope,1);
+					write(fd,&calib,1);
 					tcflush(fd,TCOFLUSH);
 				}
 				if (rdy && mode&O_RUN && ks==XK_backslash) {
@@ -275,6 +303,7 @@ main (void) {
 					write(fd,&chs,1);
 					write(fd,&dt,1);
 					write(fd,&slope,1);
+					write(fd,&calib,1);
 					tcflush(fd,TCOFLUSH);
 				}
 				if (ks==XK_space) {
