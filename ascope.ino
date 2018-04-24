@@ -27,7 +27,7 @@ ISR(ANALOG_COMP_vect) {
 	PORTB |= B00100000;
 }
 
-ISR(ADC_vect) {
+ISR(ADC_vect,ISR_NOBLOCK) {
 	// stop timer
 	cbi(TCCR1B,CS10);
 	// reset counter
@@ -63,16 +63,7 @@ ISR(ADC_vect) {
 	}
 	// enable AC interrupts and clear AC interrupt flag as well
 	// (we don't want to process a stale pending interrupt)
-//	ACSR |= B00011000;
-	ACSR |= B00010000;
-	ACSR |= B00001000;
-//	sbi(ACSR,ACIE);
-//	sbi(ACSR,ACI);
-//	sbi(ACSR,ACIE);
-	// enable interrupts,
-	// so we can process the next AC interrupt immediately,
-	// before epilogue ends
-	sei();
+	ACSR |= B00011000;
 }
 
 void
