@@ -73,19 +73,35 @@ mkosc (Display *dpy, Pixmap pm, GC gc, float buf[MAXCHS][N], int chs) {
 	}
 }
 
+// make oscilloscope control word
+unsigned char
+makecw (unsigned char prescale, unsigned char slope, unsigned char chs) {
+	return (chs<<4)+(slope<<3)+prescale;
+}
+
+// parse oscilloscope control word
+void
+parsecw (unsigned char cw, \
+	 unsigned char *prescale, unsigned char *slope, unsigned char *chs) {
+	*prescale = cw&0x7;
+	*slope = (cw&0x8)>>3;
+	*chs = (cw&0x70)>>4;
+}
+
 // return time step between samples in microseconds
 float
-dt2us (int dt) {
-	return dt/16.0;
+dt (unsigned char prescale) {
+	int f[] = {1,8,64,256,1024}; // clock division factors
+	return f[prescale-1]/16.0;
 }
 
 int
 main (void) {
 	unsigned char rbuf[MAXCHS][N]; // raw data buffer
+	unsigned char cw; // oscilloscope control word
 	unsigned char chs; // number of channels
-	unsigned char dt; // time step between samples
 	unsigned char slope; // trigger slope
-unsigned char calib;
+	unsigned char prescale; // timer clock prescale value
 	unsigned char c; // data sample
 	int ch; // channel index
 	int n; // sample index
@@ -170,11 +186,9 @@ unsigned char calib;
 			read(fd,&c,1);
 			if (c==0) {
 				// got sync
-				// read current device settings
-				read(fd,&chs,1);
-				read(fd,&dt,1);
-				read(fd,&slope,1);
-				read(fd,&calib,1);
+				// read and parse device control word
+				read(fd,&cw,1);
+				parsecw(cw,&prescale,&slope,&chs);
 				// read data buffers
 				for (ch=0; ch<chs; ++ch)
 					for (n=0; n<N; ++n) {
@@ -188,7 +202,7 @@ unsigned char calib;
 				// draw status line
 				snprintf(str,256,\
 				"%d chan%s, %.1f V/div, %.1f us/div", \
-				chs,(chs>1)?"s":"",VDIV,SDIV*dt2us(dt));
+				chs,(chs>1)?"s":"",VDIV,SDIV*dt(prescale));
 				XSetForeground(dpy,gc,0xffffff);
 				XDrawString(dpy,pm,gc,0,H-1,str,strlen(str));
 				// send itself an exposure event
@@ -217,93 +231,52 @@ unsigned char calib;
 					// set number of channels
 					str[1] = 0;
 					chs = atoi(str);
-					if (chs==0)
+					if (chs<1)
 						chs = 1;
 					if (chs>MAXCHS)
 						chs = MAXCHS;
-					// send settings to the device
-					write(fd,&chs,1);
-					write(fd,&dt,1);
-					write(fd,&slope,1);
-					write(fd,&calib,1);
+					// make control word
+					cw = makecw(prescale,slope,chs);
+					// send it to the device
+					write(fd,&cw,1);
 					tcflush(fd,TCOFLUSH);
 				}
 				if (rdy && mode&O_RUN && ks==XK_Down) {
 					// decrease time step
-					if (evt.xkey.state&ControlMask) {
-						// coarse tuning
-						if (dt>16)
-							dt -= 16;
-					} else {
-						// fine tuning
-						if (dt>1)
-							--dt;
-					}
-					// send settings to the device
-					write(fd,&chs,1);
-					write(fd,&dt,1);
-					write(fd,&slope,1);
-					write(fd,&calib,1);
+					if (prescale>1)
+						--prescale;
+					// make control word
+					cw = makecw(prescale,slope,chs);
+					// send it to the device
+					write(fd,&cw,1);
 					tcflush(fd,TCOFLUSH);
 				}
 				if (rdy && mode&O_RUN && ks==XK_Up) {
 					// increase time step
-					if (evt.xkey.state&ControlMask) {
-						// coarse tuning
-						if (dt<240)
-							dt += 16;
-					} else {
-						// fine tuning
-						if (dt<255)
-							++dt;
-					}
-					// send settings to the device
-					write(fd,&chs,1);
-					write(fd,&dt,1);
-					write(fd,&slope,1);
-					write(fd,&calib,1);
+					if (prescale<5)
+						++prescale;
+					// make control word
+					cw = makecw(prescale,slope,chs);
+					// send it to the device
+					write(fd,&cw,1);
 					tcflush(fd,TCOFLUSH);
 				}
 				if (rdy && mode&O_RUN && ks==XK_slash) {
 					// trigger on rising edge
 					slope = 1;
-					// send settings to the device
-					write(fd,&chs,1);
-					write(fd,&dt,1);
-					write(fd,&slope,1);
-					write(fd,&calib,1);
-					tcflush(fd,TCOFLUSH);
-				}
-				if (rdy && mode&O_RUN && ks==XK_minus) {
-					// lower calibration frequency
-					++calib;
-printf("calib=%d\n",calib);
-					// send settings to the device
-					write(fd,&chs,1);
-					write(fd,&dt,1);
-					write(fd,&slope,1);
-					write(fd,&calib,1);
-					tcflush(fd,TCOFLUSH);
-				}
-				if (rdy && mode&O_RUN && ks==XK_plus) {
-					// increase calibration frequency
-					--calib;
-printf("calib=%d\n",calib);
-					// send settings to the device
-					write(fd,&chs,1);
-					write(fd,&dt,1);
-					write(fd,&slope,1);
-					write(fd,&calib,1);
+					// make control word
+					cw = makecw(prescale,slope,chs);
+					// send it to the device
+					write(fd,&cw,1);
 					tcflush(fd,TCOFLUSH);
 				}
 				if (rdy && mode&O_RUN && ks==XK_backslash) {
 					// trigger on falling edge
 					slope = 0;
-					// send settings to the device
-					write(fd,&chs,1);
-					write(fd,&dt,1);
-					write(fd,&slope,1);
-					write(fd,&calib,1);
+					// make control word
+					cw = makecw(prescale,slope,chs);
+					// send it to the device
+					write(fd,&cw,1);
 					tcflush(fd,TCOFLUSH);
 				}
 				if (ks==XK_space) {
@@ -340,13 +313,13 @@ printf("calib=%d\n",calib);
 				}
 			}
 			if (rdy && evt.type==ButtonPress) {
-				// show time and voltage at the point
+				// show time and voltage below mouse pointer
 				float x,y;
 				x = evt.xbutton.x;
 				y = evt.xbutton.y;
 				if (x<W && y<H) {
 					float t,v;
-					t = (x/W)*N*dt2us(dt);
+					t = (x/W)*N*dt(prescale);
 					v = V_MAX-(V_MAX-V_MIN)*y/(H-1);
 					printf("%.1f us, %.2f V\n",t,v);
 				}

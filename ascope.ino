@@ -5,31 +5,54 @@
 #define N 256 // samples in buffer
 #define MAXCHS 2 // maximum number of channels
 
+// global variables
 unsigned char buf[MAXCHS][N]; // data buffer
-unsigned char chs=1; // current number of channels
-unsigned char dt=1; // time difference between samples
+unsigned char prescale=1; // timer clock prescale value
 unsigned char slope=1; // trigger on rising (1) or falling (0) edge
-unsigned char calib=63; // calibration setting (OCR2A)
+unsigned char chs=1; // current number of channels
 
+// make oscilloscope control word
+unsigned char
+makecw (unsigned char prescale, unsigned char slope, unsigned char chs) {
+	return (chs<<4)+(slope<<3)+prescale;
+}
+
+// parse oscilloscope control word
+void
+parsecw (unsigned char cw, \
+	 unsigned char *prescale, unsigned char *slope, unsigned char *chs) {
+	*prescale = cw&0x7;
+	*slope = (cw&0x8)>>3;
+	*chs = (cw&0x70)>>4;
+}
+
+// volatile variables
 volatile int n; // current sample number
 volatile unsigned char ch; // current channel
 volatile unsigned char rdy; // ready flag
 
+// set and clear bit macros
 #define sbi(port,bit) (port) |= (1<<(bit))
 #define cbi(port,bit) (port) &= ~(1<<(bit))
 
+// AC ISR
 ISR(ANALOG_COMP_vect) {
 	// start timer
-	sbi(TCCR1B,CS10);
+	TCCR1B |= prescale;
 	// disable AC interrupts
 	cbi(ACSR,ACIE);
 	// turn on acquisition LED
 	PORTB |= B00100000;
 }
 
+// ADC ISR
+// we execute it with interrupts always enabled (ISR_NOBLOCK),
+// so that the next AC interrupt will be processed
+// as soon as it happens, and restoring flags in this ISR's epilogue
+// will not delay it
 ISR(ADC_vect,ISR_NOBLOCK) {
 	// stop timer
-	cbi(TCCR1B,CS10);
+	TCCR1B &= B11111000;
 	// reset counter
 	TCNT1 = 0;
 	// clear TC1 output compare B match flag
@@ -39,12 +62,12 @@ ISR(ADC_vect,ISR_NOBLOCK) {
 	// advance position
 	++n;
 	// increase delay
-	OCR1B += dt;
+	++OCR1B;
 	// is buffer filled?
 	if (n==N) {
 		// reset position and delay
 		n = 0;
-		OCR1B = dt;
+		OCR1B = 1;
 		// consider the next channel
 		++ch;
 		// any channels left?
@@ -68,19 +91,14 @@ ISR(ADC_vect,ISR_NOBLOCK) {
 
 void
 setup () {
-	// Init ADC
+	// init ADC
 	// select AVcc as voltage reference
 	cbi(ADMUX,REFS1);
 	sbi(ADMUX,REFS0);
 	// left-adjust output
 	sbi(ADMUX,ADLAR);
-	// set ADC clock prescale value to 16 (this gives full 8-bit resolution)
-/*
-	sbi(ADCSRA,ADPS2);
-	cbi(ADCSRA,ADPS1);
-	cbi(ADCSRA,ADPS0);
-*/
-ADCSRA = (ADCSRA&B11111000)+2;
+	// set ADC clock prescale value
+	ADCSRA = (ADCSRA&B11111000)+2;
 	// disable digital input buffer on all ADC pins (ADC0-ADC7)
 	DIDR0 = B11111111;
 	// set auto-trigger on Timer/Counter1 Compare Match B
@@ -92,63 +110,31 @@ ADCSRA = (ADCSRA&B11111000)+2;
 	sbi(ADCSRA,ADIE);
 	// enable ADC
 	sbi(ADCSRA,ADEN);
-	// Init analog comparator
+	// init AC
 	// this trigger mode selection bit is always set
 	sbi(ACSR,ACIS1);
 	// disable digital input buffer on AIN0 and AIN1
 	sbi(DIDR1,AIN1D);
 	sbi(DIDR1,AIN0D);
-	// Stop Timer/Counter0, since we're not using it
-	// (disabling unused interrupts
-	// helps keep the phases of the channels as close as possible)
+	// stop Timer/Counter0, since we're not using it,
+	// and don't want its ISR to delay our AC ISR
 	TCCR0B &= B11111000;
-	// Init Timer/Counter1
+	// init Timer/Counter1
 	// reset control registers to the default values
 	TCCR1A = 0;
 	TCCR1B = 0;
 	TCCR1C = 0;
-	// Init serial
+	// init serial
 	Serial.begin(9600);
-	// Init LED
+	// init LED
 	// we use LED 13 as an aquisition indicator
 	pinMode(13,OUTPUT);
 	PORTB&=B11011111;
-#if 1
-// enable calibration PWM output
-// clear TC2 control registers
-TCCR2A = 0;
-TCCR2B = 0;
-TIMSK2 = 0;
-// set output compare register
-OCR2A = calib;
-//OCR2A = 127; // 62.5 kHz
-//OCR2A = 63; // 125 kHz
-//OCR2A = 50;
-//OCR2A = 41;
-//OCR2A = 35;
-//OCR2A = 31; // 250 kHz
-//OCR2A = 26;
-//OCR2A = 23; // 333 kHz
-//OCR2A = 19;
-//OCR2A = 15; // 500 kHz
-// toggle OC2A on compare
-sbi(TCCR2A,COM2A0);
-// enable CTC (clear counter on compare) mode
-sbi(TCCR2A,WGM21);
-// use PB3 as output
-pinMode(11,OUTPUT);
-// start timer at full clock speed
-sbi(TCCR2B,CS20);
-#endif
 }
 
 void
 loop () {
 	unsigned char c;
-	// restart calibration output
-	cbi(TCCR2B,CS20);
-	OCR2A = calib;
-	sbi(TCCR2B,CS20);
 	// clear ready flag
 	rdy = 0;
 	// select channel 0
@@ -156,7 +142,7 @@ loop () {
 	ADMUX &= B11110000;
 	// set initial position and delay
 	n = 0;
-	OCR1B = dt;
+	OCR1B = 1;
 	// set trigger slope
 	if (slope)
 		// trigger on rising edge
@@ -169,11 +155,8 @@ loop () {
 	// wait for the data to be ready
 	while (!rdy);
 	// write out data
-	Serial.write(0); // sync
-	Serial.write(chs); // report current number of channels
-	Serial.write(dt); // report current time step
-	Serial.write(slope); // report current trigger slope
-	Serial.write(calib); // report current calibration setting
+	Serial.write(0); // sync marker
+	Serial.write(makecw(prescale,slope,chs)); // current control word
 	for (ch=0; ch<chs; ++ch)
 		for (n=0; n<N; ++n) {
 			c = buf[ch][n];
@@ -181,19 +164,12 @@ loop () {
 				c = 1;
 	    		Serial.write(c);
 		}
-	// wait for transmit to complete
+	// wait for the transmission to complete
 	Serial.flush();
-	// read new settings, if any
+	// read the new control word, if available
 	if (Serial.available()) {
-		chs = Serial.read();
-		if (chs==0)
-			chs = 1;
-		if (chs>MAXCHS)
-			chs = MAXCHS;
-		dt = Serial.read();
-		if (dt==0)
-			dt = 1;
-		slope = Serial.read()&1;
-		calib = Serial.read();
+		c = Serial.read();
+		// parse control word
+		parsecw(c,&prescale,&slope,&chs);
 	}
 }
