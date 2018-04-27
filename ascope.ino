@@ -160,6 +160,8 @@ loop () {
 	for (ch=0; ch<chs; ++ch)
 		for (n=0; n<N; ++n) {
 			c = buf[ch][n];
+			// we write 1 instead of 0
+			// to avoid confusion with the sync marker
 			if (c==0)
 				c = 1;
 	    		Serial.write(c);
