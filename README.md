@@ -2,43 +2,48 @@
 An Arduino oscilloscope.
 
 ## Features
-* up to 16 MSps equivalent-time sampling rate,
-* 8-bit resolution,
+* equivalent-time sampling rates 16 MSps, 2 MSps,
+250 kSps, 62.5 kSps, and 15.625 kSps;
+* 8-bit resolution;
 * multiple channels.
 
 ## Hardware setup
 The oscilloscope takes its input from the analog pins A0, A1, etc.
-Aquisition is triggered when voltage on the AIN0 pin first exceeds that
-on the AIN1 pin.
+Aquisition is triggered when the voltage on the AIN0 pin rises above (or
+falls below) that on the AIN1 pin.
+
+Onboard LED is turned on while the acquisition is in progress.
 
 ## Controls
-key                   | action
-----------------------|-------
-`↓` `↑`               | Decrease or increase the time step by 1/16 μs.
-`Ctrl`+`↓` `Ctrl`+`↑` | Decrease or increase the time step by 1 μs.
-`1`, `2`, etc.        | Use 1, 2, or more (if compiled) channels
-`<space>`             | Freeze or thaw
-`d`                   | Dump the raw data to `stderr`
-`q`                   | Quit
+key            | action
+---------------|-------
+`↓` `↑`        | Decrease or increase the time scale (μs/div)
+`/` `\`        | Trigger on rising or falling edge
+`1`, `2`, etc. | Use 1, 2, or more (if compiled) channels
+`<space>`      | Freeze or thaw
+`d`            | Dump the raw data to `stderr`
+`q`            | Quit
 
-## Examples
-A __ kHz sinewave.
-![](docs/sin.png)
+## Limits
+The analog bandwidth of the Arduino ADC input circuits is somewhere
+about 200 kHz. More high-frequency signals are considerably distorted.
 
-A __ kHz multivibrator output along with the corresponding base voltage.
-![](docs/sq.png)
+## Example
+A 75 kHz multivibrator output along with the corresponding base voltage.
+![](docs/mv.png)
 
 ## Customization
-Since the Arduino ADC accepts input signal in the range 0-5V only,
-one would probably use an external conversion circuit to fit the signal
-being studied to the range suitable for Arduino. The original voltage
-range can be set with the `V_MIN` and `V_MAX` macros.
+Since the Arduino ADC accepts input in the range 0-5 V only, one would
+probably use an external conversion circuit to fit the signal being
+studied to the range suitable for the ADC. The original voltage range
+can be set with the `V_MIN` and `V_MAX` macros.
 
 Other adjustable settings are:
+* Number of samples in the buffer (must be set to the same value as in the sketch),
+* Maximum number of channels,
+* Grid steps (Volts/div and Samples/div),
 * Window width and height,
-* Grid steps (Volts per division and Samples per division),
-* Device file name,
-* Number of samples in buffer (must be set to the same value as in the sketch).
+* Device file name.
 
 ## Compliance
 The GUI source complies with the C99 standard and should compile on any

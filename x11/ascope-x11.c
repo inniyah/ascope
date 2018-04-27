@@ -218,8 +218,9 @@ main (void) {
 				// draw oscillogram
 				drawosc(dpy,pm,gc,sbuf,chs);
 				// draw status line
-				snprintf(str,256,"%.1f V/div, %.1f us/div",\
-				VDIV,SDIV*dt(prescale));
+				snprintf(str,256,\
+				         "%.1f V/div, %.1f us/div",\
+					 VDIV,SDIV*dt(prescale));
 				drawsl(dpy,pm,gc,str);
 				// send itself an exposure event
 				// to display the oscillogram
