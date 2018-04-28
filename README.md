@@ -35,7 +35,7 @@ The onboard LED is turned on while the acquisition is in progress.
 #### Controls
 key            | action
 ---------------|-------
-`↓` `↑`        | Decrease or increase the time scale (μs/div) by switching the sampling rate
+`↓` `↑`        | Decrease or increase the time scale (μs/div) by switching to the next sampling rate
 `/` `\`        | Trigger on rising or falling edge
 `1`, `2`, etc. | Use 1, 2, or more (if compiled) channels
 `<space>`      | Freeze or thaw
