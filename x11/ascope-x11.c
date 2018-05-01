@@ -54,7 +54,7 @@ dt (unsigned char prescale) {
 
 // draw oscillogram on a pixmap
 void
-drawosc (Display *dpy, Pixmap pm, GC gc, float buf[MAXCHS][N], int chs) {
+makeosc (Display *dpy, Pixmap pm, GC gc, float buf[MAXCHS][N], int chs) {
 	int ch; // current channel
 	int i; // counter
 	int x,xprev,y,yprev; // coordinates
@@ -71,7 +71,7 @@ drawosc (Display *dpy, Pixmap pm, GC gc, float buf[MAXCHS][N], int chs) {
 		x = i*SDIV*W/N-1;
 		XDrawLine(dpy,pm,gc,x,0,x,H-1);
 	}	
-	// draw zero axis
+	// draw zero voltage axis
 	XSetForeground(dpy,gc,0x808080);
 	y = (H-1)*(1+V_MIN/(V_MAX-V_MIN));
 	XDrawLine(dpy,pm,gc,0,y,W-1,y);
@@ -93,24 +93,6 @@ drawosc (Display *dpy, Pixmap pm, GC gc, float buf[MAXCHS][N], int chs) {
 			yprev = y;
 		}
 	}
-}
-
-// draw status line
-void
-drawsl (Display *dpy, Pixmap pm, GC gc, char *sl) {
-	int tw,th; // text width and height
-	int x; // buffer to hold unused return value
-	XCharStruct xcs;
-	XQueryTextExtents(dpy,XGContextFromGC(gc),\
-			  sl,strlen(sl),&x,&x,&x,&xcs);
-	tw = xcs.width;
-	th = xcs.ascent+xcs.descent;
-	// draw background rectangle
-	XSetForeground(dpy,gc,0x404040);
-	XFillRectangle(dpy,pm,gc,W-1-tw,H-1-th,tw,th);
-	// draw string
-	XSetForeground(dpy,gc,0xffffff);
-	XDrawString(dpy,pm,gc,W-1-tw,H-1,sl,strlen(sl));
 }
 
 int
@@ -187,7 +169,7 @@ main (void) {
 			// poll() timed out
 			if (mode&O_RUN) {
 				// clear previous oscillogram
-				drawosc(dpy,pm,gc,NULL,chs);
+				makeosc(dpy,pm,gc,NULL,chs);
 				// send itself an exposure event
 				evt.type = Expose;
 				XSendEvent(dpy,win,False,0,&evt);
@@ -216,12 +198,13 @@ main (void) {
 						sbuf[ch][n] = c/255.0;
 					}
 				// draw oscillogram
-				drawosc(dpy,pm,gc,sbuf,chs);
+				makeosc(dpy,pm,gc,sbuf,chs);
 				// draw status line
 				snprintf(str,256,\
 				         "%.1f V/div, %.1f us/div",\
 					 VDIV,SDIV*dt(prescale));
-				drawsl(dpy,pm,gc,str);
+				XSetForeground(dpy,gc,0xffffff);
+				XDrawString(dpy,pm,gc,0,H-1,str,strlen(str));
 				// send itself an exposure event
 				// to display the oscillogram
 				evt.type = Expose;
