@@ -29,37 +29,12 @@ exchanged with a simple protocol described below.
 #### Control flow
 The oscilloscope takes its settings from a single-byte control word:
 
-<table>
- <tr>
-  <td>7</td>
-  <td>6</td>
-  <td>5</td>
-  <td>4</td>
-  <td>3</td>
-  <td>2</td>
-  <td>1</td>
-  <td>0</td>
- </tr>
- <tr>
-  <td>Unused</td>
-  <td colspan=3>Number of channels</td>
-  <td>Slope</td>
-  <td colspan=3>TC1 clock prescale</td>
- </tr>
-</table>
+![](docs/cw.svg)
 
 #### Data flow
 The oscilloscope returns data in the following format:
 
-<table>
- <tr>
-  <td>Sync marker</td>
-  <td>Control word</td>
-  <td>Channel 1 data</td>
-  <td>...</td>
-  <td>Channel <i>chs</i> data</td>
- </tr>
-</table>
+![](docs/data.svg)
 
 The details of the exchange protocol are documented thoroughly in the
 source.

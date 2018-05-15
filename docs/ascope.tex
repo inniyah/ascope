@@ -1,0 +1,37 @@
+\documentclass[12pt,a4paper,landscape]{article}
+\pagestyle{empty}
+\usepackage[T2A]{fontenc}
+\usepackage[utf8]{inputenc}
+\usepackage[margin=1cm]{geometry}
+\usepackage{array}
+\newcolumntype{C}{>{\centering\arraybackslash}p{1.5cm}}
+\def\arraystretch{1.5}
+
+\begin{document}
+
+\iffalse
+\begin{tabular}{|*{8}{C|}}
+\hline
+7&6&5&4&3&2&1&0 \\
+\hline
+Unused &
+\multicolumn{3}{c|}{Number of channels} &
+Slope &
+\multicolumn{3}{c|}{TC1 clock prescale} \\
+\hline
+\end{tabular}
+\fi
+
+\iffalse
+\begin{tabular}{|c|c|c|c|c|}
+\hline
+Sync marker &
+Control word &
+Channel 1 data &
+... &
+Channel {\it chs} data \\
+\hline
+\end{tabular}
+\fi
+
+\end{document}
