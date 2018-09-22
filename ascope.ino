@@ -1,6 +1,6 @@
-// Arduino oscilloscope.
-// Written by Alexander Mukhin.
-// Public domain.
+// Arduino oscilloscope
+// Copyright (c) 2018 Alexander Mukhin
+// MIT License
 
 #define N 256 // samples in buffer
 #define MAXCHS 2 // maximum number of channels

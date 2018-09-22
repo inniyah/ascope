@@ -85,4 +85,4 @@ Other adjustable settings are:
 The GUI source complies with the C99 standard.
 
 ## License
-The programs are in the public domain.
+MIT.
