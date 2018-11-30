@@ -210,9 +210,12 @@ main (void) {
 				// draw oscillogram
 				makeosc(dpy,pm,gc,sbuf,chs);
 				// draw status line
-				snprintf(str,256,\
-				         "%.1f V/div, %.1f us/div",\
-					 VDIV,SDIV*dt(prescale));
+				snprintf(str,256,
+				         "%.1f V/div, %.1f us/div, "
+					 "%d ch%s, %c",
+					 VDIV,SDIV*dt(prescale),
+					 chs,chs>1?"s":"",
+					 slope?'/':'\\');
 				XSetForeground(dpy,gc,0xffffff);
 				XDrawString(dpy,pm,gc,0,H+slh-1,str,strlen(str));
 				// send itself an exposure event
