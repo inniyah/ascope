@@ -120,6 +120,8 @@ main (void) {
         GC gc;
 	Pixmap pm;
 	KeySym ks;
+	XFontStruct *fs;
+	int slh; // status line height
 
 	// open device
 	fd = open(ODEV,O_RDWR);
@@ -142,14 +144,16 @@ main (void) {
 		return 1;
 	}
 	scr = DefaultScreen(dpy);
-	win = XCreateSimpleWindow(dpy,RootWindow(dpy,scr),0,0,W,H,0,0,0);
+	gc = DefaultGC(dpy,scr);
+	fs = XQueryFont(dpy,XGContextFromGC(gc));
+	slh = fs->ascent+fs->descent;
+	win = XCreateSimpleWindow(dpy,RootWindow(dpy,scr),0,0,W,H+slh,0,0,0);
 	XSelectInput(dpy,win,ExposureMask|KeyPressMask|ButtonPressMask);
 	XDefineCursor(dpy,win,XCreateFontCursor(dpy,XC_crosshair));
 	XStoreName(dpy,win,"ascope");
 	XMapWindow(dpy,win);
-	gc = DefaultGC(dpy,scr);
-	pm = XCreatePixmap(dpy,win,W,H,DefaultDepth(dpy,scr));
-	XFillRectangle(dpy,pm,gc,0,0,W,H);
+	pm = XCreatePixmap(dpy,win,W,H+slh,DefaultDepth(dpy,scr));
+	XFillRectangle(dpy,pm,gc,0,0,W,H+slh);
 	XFlush(dpy);
 
 	// prepare pollfd structures
@@ -168,7 +172,10 @@ main (void) {
 		if (!poll(pfds,2,POLLTIMO)) {
 			// poll() timed out
 			if (mode&O_RUN) {
-				// clear previous oscillogram
+				// clear pixmap
+				XSetForeground(dpy,gc,0x000000);
+				XFillRectangle(dpy,pm,gc,0,0,W,H+slh);
+				// draw empty grid
 				makeosc(dpy,pm,gc,NULL,chs);
 				// send itself an exposure event
 				evt.type = Expose;
@@ -197,6 +204,9 @@ main (void) {
 						// fill scaled buffer
 						sbuf[ch][n] = c/255.0;
 					}
+				// clear pixmap
+				XSetForeground(dpy,gc,0x000000);
+				XFillRectangle(dpy,pm,gc,0,0,W,H+slh);
 				// draw oscillogram
 				makeosc(dpy,pm,gc,sbuf,chs);
 				// draw status line
@@ -204,7 +214,7 @@ main (void) {
 				         "%.1f V/div, %.1f us/div",\
 					 VDIV,SDIV*dt(prescale));
 				XSetForeground(dpy,gc,0xffffff);
-				XDrawString(dpy,pm,gc,0,H-1,str,strlen(str));
+				XDrawString(dpy,pm,gc,0,H+slh-1,str,strlen(str));
 				// send itself an exposure event
 				// to display the oscillogram
 				evt.type = Expose;
@@ -219,7 +229,7 @@ main (void) {
 			XNextEvent(dpy,&evt);
 			if (evt.type==Expose) {
 				// show pixmap
-				XCopyArea(dpy,pm,win,gc,0,0,W,H,0,0);
+				XCopyArea(dpy,pm,win,gc,0,0,W,H+slh,0,0);
 			}
 			if (evt.type==KeyPress) {
 				XLookupString(&evt.xkey,str,1,&ks,NULL);
