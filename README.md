@@ -40,8 +40,8 @@ The details of the exchange protocol are documented thoroughly in the
 source.
 
 ## Limits
-The analog bandwidth of the Arduino ADC input circuits is somewhere
-about 200 kHz. More high-frequency signals are considerably distorted.
+The analog bandwidth of the Arduino ADC input circuits is not much above
+100 kHz. Signals of higher frequency are considerably distorted.
 
 ## Indication
 The onboard LED is turned on while the acquisition is in progress.
@@ -80,6 +80,11 @@ Other adjustable settings are:
 * Grid steps (Volts/div and Samples/div),
 * Window width and height,
 * Device file name.
+
+#### Calibration output
+The source code contains provisions for producing square waveforms in
+the wide range of frequencies (from 500 Hz to 500 kHz), which might be
+useful for testing and calibration.
 
 #### Compliance
 The GUI source complies with the C99 standard.
