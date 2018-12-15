@@ -39,7 +39,7 @@ The oscilloscope returns data in the following format:
 The details of the exchange protocol are documented thoroughly in the
 source.
 
-## Limits
+## Limitations
 The analog bandwidth of the Arduino ADC input circuits is not much above
 100 kHz. Signals of higher frequency are considerably distorted.
 
@@ -64,11 +64,12 @@ key            | action
 Pressing a mouse button will show the time and voltage values under the
 pointer.
 
-#### Example
-A 75 kHz multivibrator output along with the corresponding base voltage:
+## Example
+Collector and base voltages of a multivibrator running at 75 kHz:
+
 ![](docs/mv.png)
 
-#### Customization
+## Customization
 Since the Arduino ADC accepts input in the range 0-5 V only, one would
 probably use an external conversion circuit to fit the signal being
 studied to the range suitable for the ADC. The original voltage range
@@ -81,12 +82,12 @@ Other adjustable settings are:
 * Window width and height,
 * Device file name.
 
-#### Calibration output
+## Calibration output
 The source code contains provisions for producing square waveforms in
 the wide range of frequencies (from 500 Hz to 500 kHz), which might be
 useful for testing and calibration.
 
-#### Compliance
+## Compliance
 The GUI source complies with the C99 standard.
 
 ## License
