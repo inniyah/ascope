@@ -63,12 +63,12 @@ makeosc (Display *dpy, Pixmap pm, GC gc, float buf[MAXCHS][N], int chs) {
 	XFillRectangle(dpy,pm,gc,0,0,W,H);
 	// draw grid lines
 	XSetForeground(dpy,gc,0x404040);
-	for (i=1; i<=floor((V_MAX-V_MIN)/VDIV); ++i) {
-		y = i*VDIV*H/(V_MAX-V_MIN)-1;
+	for (i=0; i<=floor((V_MAX-V_MIN)/VDIV); ++i) {
+		y = i*VDIV*(H-1)/(V_MAX-V_MIN);
 		XDrawLine(dpy,pm,gc,0,y,W-1,y);
 	}
-	for (i=1; i<=N/SDIV; ++i) {
-		x = i*SDIV*W/N-1;
+	for (i=0; i<=N/SDIV; ++i) {
+		x = i*SDIV*(W-1)/N;
 		XDrawLine(dpy,pm,gc,x,0,x,H-1);
 	}	
 	// draw zero voltage axis
