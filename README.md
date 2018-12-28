@@ -48,8 +48,7 @@ The onboard LED is turned on while the acquisition is in progress.
 
 ## The X11 control and viewer program
 We provide a reference implementation of a control program for Unix-like
-operating systems. It uses plain Xlib only and should work on any system
-with X11 support.
+operating systems.
 
 #### Keyboard controls
 key            | action
@@ -59,17 +58,13 @@ key            | action
 `1`, `2`, etc. | Use 1, 2, or more (if compiled) channels
 `<space>`      | Freeze or thaw
 `d`            | Dump the raw data to `stderr`
+`w`            | Write the oscillogram to `./out.png` (if compiled)
 `q`            | Quit
 
 Pressing a mouse button will show the time and voltage values under the
 pointer.
 
-## Example
-Collector and base voltages of a multivibrator running at 75 kHz:
-
-![](docs/mv.png)
-
-## Customization
+#### Customization
 Since the Arduino ADC accepts input in the range 0-5 V only, one would
 probably use an external conversion circuit to fit the signal being
 studied to the range suitable for the ADC. The original voltage range
@@ -78,17 +73,27 @@ can be set with the `V_MIN` and `V_MAX` macros.
 Other adjustable settings are:
 * Number of samples in the buffer (must be the same as in the sketch),
 * Maximum number of channels (must be the same as in the sketch),
-* Grid steps (Volts/div and Samples/div),
 * Window width and height,
-* Device file name.
+* Grid steps (Volts per division and Samples per division),
+* Device file name,
+* Option to save oscillograms to PNG files.
+
+#### Requirements
+The GUI uses plain Xlib only. Saving oscillograms to files uses GD
+graphics library.
+
+#### Compliance
+The GUI source complies with the C99 standard.
 
 ## Calibration output
 The source code contains provisions for producing square waveforms in
 the wide range of frequencies (from 500 Hz to 500 kHz), which might be
 useful for testing and calibration.
 
-## Compliance
-The GUI source complies with the C99 standard.
+## Example
+A 31.25 kHz calibration output, directly fed to the oscilloscope input:
+
+![](docs/out.png)
 
 ## License
 MIT.
