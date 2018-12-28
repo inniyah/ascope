@@ -112,6 +112,7 @@ main (void) {
 	enum {O_RUN=0x1} mode=1; // mode of operation
 	char str[256]; // string buffer (for status line text and keyboard input)
 	int rdy=0; // ready flag, means oscillogram is received and displayed
+	int sendcw; // update and send new CW flag
 	// X stuff
 	Display *dpy;
 	Window win;
@@ -236,6 +237,8 @@ main (void) {
 			}
 			if (evt.type==KeyPress) {
 				XLookupString(&evt.xkey,str,1,&ks,NULL);
+				// clear update CW flag
+				sendcw = 0;
 				if (ks==XK_q) {
 					// quit
 					return 0;
@@ -248,49 +251,34 @@ main (void) {
 						chs = 1;
 					if (chs>MAXCHS)
 						chs = MAXCHS;
-					// make control word
-					cw = makecw(prescale,slope,chs);
-					// send it to the device
-					write(fd,&cw,1);
-					tcflush(fd,TCOFLUSH);
+					// request sending of the new CW
+					sendcw = 1;
 				}
 				if (rdy && mode&O_RUN && ks==XK_Down) {
 					// decrease time step
 					if (prescale>1)
 						--prescale;
-					// make control word
-					cw = makecw(prescale,slope,chs);
-					// send it to the device
-					write(fd,&cw,1);
-					tcflush(fd,TCOFLUSH);
+					// request sending of the new CW
+					sendcw = 1;
 				}
 				if (rdy && mode&O_RUN && ks==XK_Up) {
 					// increase time step
 					if (prescale<5)
 						++prescale;
-					// make control word
-					cw = makecw(prescale,slope,chs);
-					// send it to the device
-					write(fd,&cw,1);
-					tcflush(fd,TCOFLUSH);
+					// request sending of the new CW
+					sendcw = 1;
 				}
 				if (rdy && mode&O_RUN && ks==XK_slash) {
 					// trigger on rising edge
 					slope = 1;
-					// make control word
-					cw = makecw(prescale,slope,chs);
-					// send it to the device
-					write(fd,&cw,1);
-					tcflush(fd,TCOFLUSH);
+					// request sending of the new CW
+					sendcw = 1;
 				}
 				if (rdy && mode&O_RUN && ks==XK_backslash) {
 					// trigger on falling edge
 					slope = 0;
-					// make control word
-					cw = makecw(prescale,slope,chs);
-					// send it to the device
-					write(fd,&cw,1);
-					tcflush(fd,TCOFLUSH);
+					// request sending of the new CW
+					sendcw = 1;
 				}
 				if (ks==XK_space) {
 					// toggle run mode
@@ -323,6 +311,14 @@ main (void) {
 							fprintf(stderr,\
 							"%hhu\n",rbuf[ch][n]);
 					fflush(stderr);
+				}
+				// update and send the new CW
+				if (sendcw) {
+					// make control word
+					cw = makecw(prescale,slope,chs);
+					// send it to the device
+					write(fd,&cw,1);
+					tcflush(fd,TCOFLUSH);
 				}
 			}
 			if (rdy && evt.type==ButtonPress) {
