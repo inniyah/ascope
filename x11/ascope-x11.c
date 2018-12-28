@@ -312,6 +312,35 @@ main (void) {
 							"%hhu\n",rbuf[ch][n]);
 					fflush(stderr);
 				}
+#if 0
+#include <gd.h>
+#include <errno.h>
+				if (rdy && ks==XK_w) {
+					// write oscillogram to a file
+					gdImagePtr gdimg;
+					XImage *img;
+					FILE *of;
+					const char *ofname="out.png";
+					int i,j;
+					gdimg = gdImageCreateTrueColor(W,H+slh);
+					img = XGetImage(dpy,pm,0,0,W,H+slh,0xffffffff,ZPixmap);
+					// copy image
+					for (i=0; i<W; ++i)
+						for (j=0; j<H+slh; ++j)
+							gdImageSetPixel(gdimg,i,j,XGetPixel(img,i,j));
+					// open file
+					of = fopen(ofname,"w");
+					if (of==NULL) {
+						fprintf(stderr,"Can't open %s: %s\n",ofname,strerror(errno));
+					} else {
+						gdImagePng(gdimg,of);
+						fclose(of);
+						printf("wrote %s\n", ofname);
+					}
+					gdImageDestroy(gdimg);
+					XDestroyImage(img);
+				}
+#endif
 				// update and send the new CW
 				if (sendcw) {
 					// make control word
