@@ -3,14 +3,15 @@
 // MIT License
 
 #define N 256 // number of samples in buffer
+#define MAXP 8 // maximum time zoom power, should not exceed log2(N)
 #define MAXCHS 2 // maximum number of channels
 const int clrs[MAXCHS]={0x00ff00,0xff0000}; // channel colors
 #define W 512 // window width
 #define H 256 // window height
 #define ZS 1 // ADC reading for zero input voltage
 #define VPS (5.0/255) // voltage per ADC sample
-#define V_MIN 0.0 // minimum display voltage
-#define V_MAX 5.0 // maximum display voltage
+#define DVMIN 0.0 // minimum display voltage
+#define DVMAX 5.0 // maximum display voltage
 #define VDIV 0.5 // horizontal grid step in volts per division
 #define SDIV 8 // vertical grid step in samples per division
 #define POLLTIMO 5000 // poll timeout in milliseconds
@@ -31,6 +32,8 @@ const int clrs[MAXCHS]={0x00ff00,0xff0000}; // channel colors
 #include <math.h>
 #include <string.h>
 #include <ctype.h>
+
+#define M_PI 3.14159265358979323846
 
 // make oscilloscope control word
 unsigned char
@@ -56,30 +59,31 @@ dt (unsigned char prescale) {
 
 // draw oscillogram on a pixmap
 void
-makeosc (Display *dpy, Pixmap pm, GC gc, float buf[MAXCHS][N], int chs) {
+makeosc (Display *dpy, Pixmap pm, GC gc, float buf[MAXCHS][N], int chs, int zt, int zv) {
 	int ch; // current channel
 	int i; // counter
 	int x,xprev,y,yprev; // coordinates
+	float svmin=DVMIN/zv,svmax=DVMAX/zv; // scaled voltage display limits
 	// clear pixmap
 	XSetForeground(dpy,gc,0x000000);
 	XFillRectangle(dpy,pm,gc,0,0,W,H);
 	// draw grid lines
 	XSetForeground(dpy,gc,0x404040);
-	for (i=1; i<=floor(V_MAX/VDIV); ++i) {
-		y = (H-1)*(V_MAX-i*VDIV)/(V_MAX-V_MIN);
+	for (i=1; i<=floor(svmax/VDIV); ++i) {
+		y = (H-1)*(svmax-i*VDIV)/(svmax-svmin);
 		XDrawLine(dpy,pm,gc,0,y,W-1,y);
 	}
-	for (i=1; i<=floor(-V_MIN/VDIV); ++i) {
-		y = (H-1)*(V_MAX+i*VDIV)/(V_MAX-V_MIN);
+	for (i=1; i<=floor(-svmin/VDIV); ++i) {
+		y = (H-1)*(svmax+i*VDIV)/(svmax-svmin);
 		XDrawLine(dpy,pm,gc,0,y,W-1,y);
 	}
-	for (i=0; i<=N/SDIV; ++i) {
-		x = i*SDIV*(W-1)/N;
+	for (i=0; i<=N/(zt*SDIV); ++i) {
+		x = i*zt*SDIV*(W-1)/N;
 		XDrawLine(dpy,pm,gc,x,0,x,H-1);
 	}	
 	// draw zero voltage axis
 	XSetForeground(dpy,gc,0x808080);
-	y = (H-1)*V_MAX/(V_MAX-V_MIN);
+	y = (H-1)*svmax/(svmax-svmin);
 	XDrawLine(dpy,pm,gc,0,y,W-1,y);
 	if (!buf)
 		// return if no data available
@@ -90,7 +94,7 @@ makeosc (Display *dpy, Pixmap pm, GC gc, float buf[MAXCHS][N], int chs) {
 		XSetForeground(dpy,gc,clrs[ch]);
 		for (i=0; i<N; ++i) {
 			x = i*W/N;
-			y = (H-1)*(V_MAX-buf[ch][i])/(V_MAX-V_MIN);
+			y = (H-1)*(svmax-buf[ch][i])/(svmax-svmin);
 			if (i)
 				XDrawLine(dpy,pm,gc,xprev,yprev,x,y);
 			else
@@ -99,6 +103,58 @@ makeosc (Display *dpy, Pixmap pm, GC gc, float buf[MAXCHS][N], int chs) {
 			yprev = y;
 		}
 	}
+}
+
+// sinus cardinalis
+float
+sinc (float x) {
+	const float eps=0.001;
+	if (fabs(x)>eps)
+		return sinf(x)/x;
+	else
+		return 1.0;
+}
+
+// fill sinc tables
+void
+fill_sinc (float sinctbl[MAXP+1][N*N]) {
+	int p,z; // zoom power and factor
+	int k,l,m; // indices
+	float *tptr; // pointer
+	for (p=0; p<=MAXP; ++p) {
+		z = 1<<p;
+		tptr = sinctbl[p];
+		for (k=0; k<N/z; ++k)
+			for (l=0; l<z; ++l)
+				for (m=0; m<N; ++m)
+					*tptr++ = sinc(M_PI*((float)l/z+k-m));
+	}
+}
+
+// linear interpolation
+void
+interp_lin (int z, const float *buf, float *zbuf) {
+	int k,l; // indices
+	float t; // parameter
+	for (k=0; k<N/z; ++k)
+		for (l=0; l<z; ++l) {
+			t = (float)l/z;
+			*zbuf++ = buf[k]*(1-t)+buf[k+1]*t;
+		}
+}
+
+// sinc interpolation
+void
+interp_sinc (int z, const float *tbl, const float *buf, float *zbuf) {
+	int k,l,m; // indices
+	float s; // sum
+	for (k=0; k<N/z; ++k)
+		for (l=0; l<z; ++l) {
+			s = 0.0;
+			for (m=0; m<N; ++m)
+				s += (buf[m]-buf[0])**tbl++;
+			*zbuf++ = s+buf[0];
+		}
 }
 
 int
@@ -112,10 +168,14 @@ main (void) {
 	int ch; // channel index
 	int n; // sample index
 	float vbuf[MAXCHS][N]; // acquired data converted to voltage
+	int p=0,zt=1<<p; // time scale zoom power and factor (zt=2^p)
+	int zv=1; // voltage scale zoom factor
+	float zbuf[MAXCHS][N]; // interpolated (zoomed) data
+	float sinctbl[MAXP+1][N*N]; // precomputed sinc tables
 	int fd; // oscilloscope device file descriptor
 	struct termios t; // terminal structure
 	struct pollfd pfds[2]; // poll structures
-	enum {O_RUN=0x1} mode=1; // mode of operation
+	enum {O_LIN=0x1,O_RUN=0x2} mode=3; // mode of operation
 	char str[256]; // string buffer (for status line text and keyboard input)
 	int rdy=0; // ready flag, means oscillogram is received and displayed
 	int sendcw; // update and send new CW flag
@@ -129,6 +189,9 @@ main (void) {
 	KeySym ks;
 	XFontStruct *fs;
 	int slh; // status line height
+
+	// fill sinc tables
+	fill_sinc(sinctbl);
 
 	// open device
 	fd = open(ODEV,O_RDWR);
@@ -183,7 +246,7 @@ main (void) {
 				XSetForeground(dpy,gc,0x000000);
 				XFillRectangle(dpy,pm,gc,0,0,W,H+slh);
 				// draw empty grid
-				makeosc(dpy,pm,gc,NULL,chs);
+				makeosc(dpy,pm,gc,NULL,chs,zt,zv);
 				// send itself an exposure event
 				evt.type = Expose;
 				XSendEvent(dpy,win,False,0,&evt);
@@ -211,18 +274,55 @@ main (void) {
 						// convert sample to voltage
 						vbuf[ch][n] = (c-ZS)*VPS;
 					}
+				// do interpolation (zoom)
+				for (ch=0; ch<chs; ++ch)
+					if (zt>1 && mode&O_LIN)
+						// linear interpolation
+						interp_lin(zt,vbuf[ch],zbuf[ch]);
+					else if (zt>1)
+						// sinc interpolation
+						interp_sinc(zt,sinctbl[p], \
+						vbuf[ch],zbuf[ch]);
+					else
+						// copy
+						memcpy(zbuf[ch],vbuf[ch], \
+						N*sizeof(float));
 				// clear pixmap
 				XSetForeground(dpy,gc,0x000000);
 				XFillRectangle(dpy,pm,gc,0,0,W,H+slh);
 				// draw oscillogram
-				makeosc(dpy,pm,gc,vbuf,chs);
+				makeosc(dpy,pm,gc,zbuf,chs,zt,zv);
 				// draw status line
-				snprintf(str,256,
-				         "%.1f V/div, %.1f us/div, "
-					 "%d ch%s, %c",
-					 VDIV,SDIV*dt(prescale),
-					 chs,chs>1?"s":"",
-					 slope?'/':'\\');
+				if (zt==1 && zv==1)
+					snprintf(str,256,
+					"%.1f V/div, %.1f us/div, "
+					"%d ch%s, %c",
+					VDIV,SDIV*dt(prescale),
+					chs,chs>1?"s":"",
+					slope?'/':'\\');
+				else if (zt>1 && zv==1)
+					snprintf(str,256,
+					"%.1f V/div, %.1f us/div (%dx %s), "
+					"%d ch%s, %c",
+					VDIV,SDIV*dt(prescale),
+					zt,(mode&O_LIN)?"linear":"sinc",
+					chs,chs>1?"s":"",
+					slope?'/':'\\');
+				else if (zt==1 && zv>1)
+					snprintf(str,256,
+					"%.1f V/div (%dx), %.1f us/div, "
+					"%d ch%s, %c",
+					VDIV,zv,SDIV*dt(prescale),
+					chs,chs>1?"s":"",
+					slope?'/':'\\');
+				else
+					snprintf(str,256,
+					"%.1f V/div (%dx), %.1f us/div (%dx %s), "
+					"%d ch%s, %c",
+					VDIV,zv,SDIV*dt(prescale),
+					zt,(mode&O_LIN)?"linear":"sinc",
+					chs,chs>1?"s":"",
+					slope?'/':'\\');
 				XSetForeground(dpy,gc,0xffffff);
 				XDrawString(dpy,pm,gc,0,H+slh-1,str,strlen(str));
 				// send itself an exposure event
@@ -260,15 +360,15 @@ main (void) {
 					// request sending of the new CW
 					sendcw = 1;
 				}
-				if (rdy && mode&O_RUN && ks==XK_Down) {
-					// decrease time step
+				if (rdy && mode&O_RUN && ks==XK_plus) {
+					// increase sampling rate
 					if (prescale>1)
 						--prescale;
 					// request sending of the new CW
 					sendcw = 1;
 				}
-				if (rdy && mode&O_RUN && ks==XK_Up) {
-					// increase time step
+				if (rdy && mode&O_RUN && ks==XK_minus) {
+					// decrease sampling rate
 					if (prescale<5)
 						++prescale;
 					// request sending of the new CW
@@ -285,6 +385,33 @@ main (void) {
 					slope = 0;
 					// request sending of the new CW
 					sendcw = 1;
+				}
+				if (rdy && mode&O_RUN && ks==XK_Right) {
+					// increase time zoom
+					if (p<MAXP) {
+						++p;
+						zt = 1<<p;
+					}
+				}
+				if (rdy && mode&O_RUN && ks==XK_Left) {
+					// decrease time zoom
+					if (p>0) {
+						--p;
+						zt = 1<<p;
+					}
+				}
+				if (rdy && mode&O_RUN && ks==XK_Up) {
+					// increase voltage zoom
+					++zv;
+				}
+				if (rdy && mode&O_RUN && ks==XK_Down) {
+					// decrease voltage zoom
+					if (zv>1)
+						--zv;
+				}
+				if (rdy && mode&O_RUN && p && ks==XK_i) {
+					// toggle interpolation mode
+					mode ^= O_LIN;
 				}
 				if (ks==XK_space) {
 					// toggle run mode
@@ -363,8 +490,8 @@ main (void) {
 				y = evt.xbutton.y;
 				if (x<W && y<H) {
 					float t,v;
-					t = (x/W)*N*dt(prescale);
-					v = V_MAX-(V_MAX-V_MIN)*y/(H-1);
+					t = (x/W)*N*dt(prescale)/zt;
+					v = (DVMAX-(DVMAX-DVMIN)*y/(H-1))/zv;
 					printf("%.1f us, %.2f V\n",t,v);
 				}
 			}
