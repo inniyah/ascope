@@ -2,9 +2,10 @@
 An Arduino Uno oscilloscope.
 
 ## Features
-* equivalent-time sampling rates 16 MSps, 2 MSps, 250 kSps, 62.5 kSps, and 15.625 kSps;
-* 8-bit resolution;
-* multiple channels.
+* equivalent-time sampling rates 16 MSps, 2 MSps, 250 kSps, 62.5 kSps, and 15.625 kSps,
+* 8-bit resolution,
+* multiple channels,
+* linear and sinc interpolation up to 256x.
 
 There's also a [real-time sampling](../../tree/realtime) version;
 however, it offers much lower sampling rates.
