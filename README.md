@@ -76,7 +76,7 @@ voltage and ADC reading is set with the `ZS` and `VPS` macros.
 Other adjustable settings are:
 * Number of samples in the buffer (must be the same as in the sketch),
 * Maximum number of channels (must be the same as in the sketch),
-* Window width and height,
+* Oscillogram width and height,
 * Grid steps (Volts per division and Samples per division),
 * Display voltage range,
 * Device file name,
