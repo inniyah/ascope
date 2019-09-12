@@ -1,5 +1,5 @@
 // Arduino oscilloscope
-// Copyright (c) 2018 Alexander Mukhin
+// Copyright (c) 2019 Alexander Mukhin
 // MIT License
 
 #define N 256 // samples in buffer
