@@ -5,7 +5,7 @@
 #define N 256 // number of samples in buffer
 #define MAXP 8 // maximum time zoom power, should not exceed log2(N)
 #define MAXCHS 2 // maximum number of channels
-const int clrs[MAXCHS]={0x00ff00,0xff0000}; // channel colors
+const int clrs[MAXCHS] = {0x00ff00,0xff0000}; // channel colors
 #define W 512 // window width
 #define H 256 // window height
 #define ZS 1 // ADC reading for zero input voltage
@@ -43,8 +43,7 @@ makecw (unsigned char prescale, unsigned char slope, unsigned char chs) {
 
 // parse oscilloscope control word
 void
-parsecw (unsigned char cw, \
-	 unsigned char *prescale, unsigned char *slope, unsigned char *chs) {
+parsecw (unsigned char cw, unsigned char *prescale, unsigned char *slope, unsigned char *chs) {
 	*prescale = cw&0x7;
 	*slope = (cw&0x8)>>3;
 	*chs = (cw&0x70)>>4;
@@ -64,9 +63,6 @@ makeosc (Display *dpy, Pixmap pm, GC gc, float buf[MAXCHS][N], int chs, int zt, 
 	int i; // counter
 	int x,xprev,y,yprev; // coordinates
 	float svmin=DVMIN/zv,svmax=DVMAX/zv; // scaled voltage display limits
-	// clear pixmap
-	XSetForeground(dpy,gc,0x000000);
-	XFillRectangle(dpy,pm,gc,0,0,W,H);
 	// draw grid lines
 	XSetForeground(dpy,gc,0x404040);
 	for (i=1; i<=floor(svmax/VDIV); ++i) {
@@ -160,10 +156,10 @@ interp_sinc (int z, const float *tbl, const float *buf, float *zbuf) {
 int
 main (void) {
 	unsigned char rbuf[MAXCHS][N]; // raw data buffer
-	unsigned char cw; // oscilloscope control word
-	unsigned char chs; // number of channels
-	unsigned char slope; // trigger slope
 	unsigned char prescale; // timer clock prescale value
+	unsigned char slope; // trigger slope
+	unsigned char chs; // number of channels
+	unsigned char cw; // oscilloscope control word
 	unsigned char c; // data sample
 	int ch; // channel index
 	int n; // sample index
@@ -362,17 +358,19 @@ main (void) {
 				}
 				if (rdy && mode&O_RUN && ks==XK_plus) {
 					// increase sampling rate
-					if (prescale>1)
+					if (prescale>1) {
 						--prescale;
-					// request sending of the new CW
-					sendcw = 1;
+						// request sending of the new CW
+						sendcw = 1;
+					}
 				}
 				if (rdy && mode&O_RUN && ks==XK_minus) {
 					// decrease sampling rate
-					if (prescale<5)
+					if (prescale<5) {
 						++prescale;
-					// request sending of the new CW
-					sendcw = 1;
+						// request sending of the new CW
+						sendcw = 1;
+					}
 				}
 				if (rdy && mode&O_RUN && ks==XK_slash) {
 					// trigger on rising edge
