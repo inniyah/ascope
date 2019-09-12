@@ -53,9 +53,12 @@ operating systems.
 #### Keyboard controls
 key            | action
 ---------------|-------
-`↓`, `↑`       | Decrease or increase the time scale (μs/div) by switching to the next sampling rate
+`+`, `-`       | Increase or decrease sampling rate
 `/`, `\`       | Trigger on rising or falling edge
 `1`, `2`, etc. | Use 1, 2, or more (if compiled) channels
+`→`, `←`       | Increase or decrease time scale zoom
+`↑`, `↓`       | Increase or decrease voltage scale zoom
+`i`            | Toggle interpolation mode (linear or sinc)
 `<space>`      | Freeze or thaw
 `d`            | Dump the raw data to `stderr`
 `w`            | Write the oscillogram to `./out.png` (if compiled)
@@ -67,14 +70,15 @@ pointer.
 #### Customization
 Since the Arduino ADC accepts input in the range 0-5 V only, one would
 probably use an external conversion circuit to fit the signal being
-studied to the range suitable for the ADC. The original voltage range
-can be set with the `V_MIN` and `V_MAX` macros.
+studied to the range suitable for the ADC. The relation between input
+voltage and ADC reading is set with the `ZS` and `VPS` macros.
 
 Other adjustable settings are:
 * Number of samples in the buffer (must be the same as in the sketch),
 * Maximum number of channels (must be the same as in the sketch),
 * Window width and height,
 * Grid steps (Volts per division and Samples per division),
+* Display voltage range,
 * Device file name,
 * Option to save oscillograms to PNG files.
 
