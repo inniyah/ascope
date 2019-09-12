@@ -491,8 +491,8 @@ main (void) {
 			if (rdy && evt.type==ButtonPress) {
 				// show time and voltage below mouse pointer
 				float x,y;
-				x = evt.xbutton.x;
-				y = evt.xbutton.y;
+				x = evt.xbutton.x-B;
+				y = evt.xbutton.y-B;
 				if (x<W && y<H) {
 					float t,v;
 					t = (x/W)*N*dt(prescale)/zt;
