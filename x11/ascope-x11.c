@@ -6,8 +6,9 @@
 #define MAXP 8 // maximum time zoom power, should not exceed log2(N)
 #define MAXCHS 2 // maximum number of channels
 const int clrs[MAXCHS] = {0x00ff00,0xff0000}; // channel colors
-#define W 512 // window width
-#define H 256 // window height
+#define W 512 // oscillogram width
+#define H 256 // oscillogram height
+#define B 10 // border width
 #define ZS 1 // ADC reading for zero input voltage
 #define VPS (5.0/255) // voltage per ADC sample
 #define DVMIN 0.0 // minimum display voltage
@@ -185,6 +186,8 @@ main (void) {
 	KeySym ks;
 	XFontStruct *fs;
 	int slh; // status line height
+	int ww,wh; // window width and height
+	int pw,ph; // pixmap width and height
 
 	// fill sinc tables
 	fill_sinc(sinctbl);
@@ -213,13 +216,17 @@ main (void) {
 	gc = DefaultGC(dpy,scr);
 	fs = XQueryFont(dpy,XGContextFromGC(gc));
 	slh = fs->ascent+fs->descent;
-	win = XCreateSimpleWindow(dpy,RootWindow(dpy,scr),0,0,W,H+slh,0,0,0);
+	ww = W+2*B;
+	wh = H+slh+2*B;
+	win = XCreateSimpleWindow(dpy,RootWindow(dpy,scr),0,0,ww,wh,0,0,0);
 	XSelectInput(dpy,win,ExposureMask|KeyPressMask|ButtonPressMask);
 	XDefineCursor(dpy,win,XCreateFontCursor(dpy,XC_crosshair));
 	XStoreName(dpy,win,"ascope");
 	XMapWindow(dpy,win);
-	pm = XCreatePixmap(dpy,win,W,H+slh,DefaultDepth(dpy,scr));
-	XFillRectangle(dpy,pm,gc,0,0,W,H+slh);
+	pw = W;
+	ph = H+slh;
+	pm = XCreatePixmap(dpy,win,pw,ph,DefaultDepth(dpy,scr));
+	XFillRectangle(dpy,pm,gc,0,0,pw,ph);
 	XFlush(dpy);
 
 	// prepare pollfd structures
@@ -240,7 +247,7 @@ main (void) {
 			if (mode&O_RUN) {
 				// clear pixmap
 				XSetForeground(dpy,gc,0x000000);
-				XFillRectangle(dpy,pm,gc,0,0,W,H+slh);
+				XFillRectangle(dpy,pm,gc,0,0,pw,ph);
 				// draw empty grid
 				makeosc(dpy,pm,gc,NULL,chs,zt,zv);
 				// send itself an exposure event
@@ -285,7 +292,7 @@ main (void) {
 						N*sizeof(float));
 				// clear pixmap
 				XSetForeground(dpy,gc,0x000000);
-				XFillRectangle(dpy,pm,gc,0,0,W,H+slh);
+				XFillRectangle(dpy,pm,gc,0,0,pw,ph);
 				// draw oscillogram
 				makeosc(dpy,pm,gc,zbuf,chs,zt,zv);
 				// draw status line
@@ -320,7 +327,7 @@ main (void) {
 					chs,chs>1?"s":"",
 					slope?'/':'\\');
 				XSetForeground(dpy,gc,0xffffff);
-				XDrawString(dpy,pm,gc,0,H+slh-1,str,strlen(str));
+				XDrawString(dpy,pm,gc,0,ph-1,str,strlen(str));
 				// send itself an exposure event
 				// to display the oscillogram
 				evt.type = Expose;
@@ -335,7 +342,7 @@ main (void) {
 			XNextEvent(dpy,&evt);
 			if (evt.type==Expose) {
 				// show pixmap
-				XCopyArea(dpy,pm,win,gc,0,0,W,H+slh,0,0);
+				XCopyArea(dpy,pm,win,gc,0,0,pw,ph,B,B);
 			}
 			if (evt.type==KeyPress) {
 				XLookupString(&evt.xkey,str,1,&ks,NULL);
@@ -453,12 +460,12 @@ main (void) {
 					FILE *of;
 					const char *ofname="out.png";
 					int i,j;
-					gdimg = gdImageCreateTrueColor(W,H+slh);
-					img = XGetImage(dpy,pm,0,0,W,H+slh,0xffffffff,ZPixmap);
+					gdimg = gdImageCreateTrueColor(ww,wh);
+					img = XGetImage(dpy,pm,0,0,pw,ph,0xffffffff,ZPixmap);
 					// copy image
-					for (i=0; i<W; ++i)
-						for (j=0; j<H+slh; ++j)
-							gdImageSetPixel(gdimg,i,j,XGetPixel(img,i,j));
+					for (i=0; i<pw; ++i)
+						for (j=0; j<ph; ++j)
+							gdImageSetPixel(gdimg,B+i,B+j,XGetPixel(img,i,j));
 					// open file
 					of = fopen(ofname,"w");
 					if (of==NULL) {
