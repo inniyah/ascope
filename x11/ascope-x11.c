@@ -7,8 +7,10 @@
 const int clrs[MAXCHS]={0x00ff00,0xff0000}; // channel colors
 #define W 512 // window width
 #define H 256 // window height
-#define V_MIN 0.0 // voltage for ADC reading 0
-#define V_MAX 5.0 // voltage for ADC reading 255
+#define ZS 1 // ADC reading for zero input voltage
+#define VPS (5.0/255) // voltage per ADC sample
+#define V_MIN 0.0 // minimum display voltage
+#define V_MAX 5.0 // maximum display voltage
 #define VDIV 0.5 // horizontal grid step in volts per division
 #define SDIV 8 // vertical grid step in samples per division
 #define POLLTIMO 5000 // poll timeout in milliseconds
@@ -63,8 +65,12 @@ makeosc (Display *dpy, Pixmap pm, GC gc, float buf[MAXCHS][N], int chs) {
 	XFillRectangle(dpy,pm,gc,0,0,W,H);
 	// draw grid lines
 	XSetForeground(dpy,gc,0x404040);
-	for (i=0; i<=floor((V_MAX-V_MIN)/VDIV); ++i) {
-		y = i*VDIV*(H-1)/(V_MAX-V_MIN);
+	for (i=1; i<=floor(V_MAX/VDIV); ++i) {
+		y = (H-1)*(V_MAX-i*VDIV)/(V_MAX-V_MIN);
+		XDrawLine(dpy,pm,gc,0,y,W-1,y);
+	}
+	for (i=1; i<=floor(-V_MIN/VDIV); ++i) {
+		y = (H-1)*(V_MAX+i*VDIV)/(V_MAX-V_MIN);
 		XDrawLine(dpy,pm,gc,0,y,W-1,y);
 	}
 	for (i=0; i<=N/SDIV; ++i) {
@@ -73,7 +79,7 @@ makeosc (Display *dpy, Pixmap pm, GC gc, float buf[MAXCHS][N], int chs) {
 	}	
 	// draw zero voltage axis
 	XSetForeground(dpy,gc,0x808080);
-	y = (H-1)*(1+V_MIN/(V_MAX-V_MIN));
+	y = (H-1)*V_MAX/(V_MAX-V_MIN);
 	XDrawLine(dpy,pm,gc,0,y,W-1,y);
 	if (!buf)
 		// return if no data available
@@ -84,7 +90,7 @@ makeosc (Display *dpy, Pixmap pm, GC gc, float buf[MAXCHS][N], int chs) {
 		XSetForeground(dpy,gc,clrs[ch]);
 		for (i=0; i<N; ++i) {
 			x = i*W/N;
-			y = (H-1)*(1-buf[ch][i]);
+			y = (H-1)*(V_MAX-buf[ch][i])/(V_MAX-V_MIN);
 			if (i)
 				XDrawLine(dpy,pm,gc,xprev,yprev,x,y);
 			else
@@ -105,7 +111,7 @@ main (void) {
 	unsigned char c; // data sample
 	int ch; // channel index
 	int n; // sample index
-	float sbuf[MAXCHS][N]; // raw data scaled to [0,1]
+	float vbuf[MAXCHS][N]; // acquired data converted to voltage
 	int fd; // oscilloscope device file descriptor
 	struct termios t; // terminal structure
 	struct pollfd pfds[2]; // poll structures
@@ -202,14 +208,14 @@ main (void) {
 					for (n=0; n<N; ++n) {
 						read(fd,&c,1);
 						rbuf[ch][n] = c;
-						// fill scaled buffer
-						sbuf[ch][n] = c/255.0;
+						// convert sample to voltage
+						vbuf[ch][n] = (c-ZS)*VPS;
 					}
 				// clear pixmap
 				XSetForeground(dpy,gc,0x000000);
 				XFillRectangle(dpy,pm,gc,0,0,W,H+slh);
 				// draw oscillogram
-				makeosc(dpy,pm,gc,sbuf,chs);
+				makeosc(dpy,pm,gc,vbuf,chs);
 				// draw status line
 				snprintf(str,256,
 				         "%.1f V/div, %.1f us/div, "
