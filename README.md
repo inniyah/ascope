@@ -4,11 +4,10 @@ An Arduino Uno oscilloscope.
 ## Features
 * equivalent-time sampling rates 16 MSps, 2 MSps, 250 kSps, 62.5 kSps, and 15.625 kSps,
 * 8-bit resolution,
-* multiple channels,
-* linear and sinc interpolation up to 256x.
+* multiple channels.
 
-There's also a [real-time sampling](../../tree/realtime) version;
-however, it offers much lower sampling rates.
+There's also a [real-time sampling](../../tree/realtime) version.
+However, it offers much lower sampling rates.
 
 ## Hardware setup
 The oscilloscope takes its input from the analog pins A0, A1, etc.
@@ -96,7 +95,7 @@ the wide range of frequencies (from 500 Hz to 500 kHz), which might be
 useful for testing and calibration.
 
 ## Example
-A 31.25 kHz calibration output, directly fed to the oscilloscope input:
+A 31.25 kHz calibration output, fed directly to the oscilloscope input:
 
 ![](docs/out.png)
 
