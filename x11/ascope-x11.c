@@ -9,8 +9,6 @@ const int clrs[MAXCHS] = {0x00ff00,0xff0000}; // channel colors
 #define W 512 // oscillogram width
 #define H 256 // oscillogram height
 #define B 10 // border width
-#define ZS 1 // ADC reading for zero input voltage
-#define VPS (5.0/255) // voltage per ADC sample
 #define DVMIN 0.0 // minimum display voltage
 #define DVMAX 5.0 // maximum display voltage
 #define VDIV 0.5 // vertical grid step in volts per division
@@ -48,6 +46,13 @@ parsecw (unsigned char cw, unsigned char *prescale, unsigned char *slope, unsign
 	*prescale = cw&0x7;
 	*slope = (cw&0x8)>>3;
 	*chs = (cw&0x70)>>4;
+}
+
+// sample to voltage conversion
+float
+s2v (unsigned char c) {
+	float t=c/255.0;
+	return DVMIN*(1-t)+DVMAX*t;
 }
 
 // return time step between samples in microseconds
@@ -275,7 +280,7 @@ main (void) {
 						read(fd,&c,1);
 						rbuf[ch][n] = c;
 						// convert sample to voltage
-						vbuf[ch][n] = (c-ZS)*VPS;
+						vbuf[ch][n] = s2v(c);
 					}
 				// do interpolation (zoom)
 				for (ch=0; ch<chs; ++ch)
