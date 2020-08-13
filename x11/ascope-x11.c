@@ -13,8 +13,8 @@ const int clrs[MAXCHS] = {0x00ff00,0xff0000}; // channel colors
 #define VPS (5.0/255) // voltage per ADC sample
 #define DVMIN 0.0 // minimum display voltage
 #define DVMAX 5.0 // maximum display voltage
-#define VDIV 0.5 // horizontal grid step in volts per division
-#define SDIV 8 // vertical grid step in samples per division
+#define VDIV 0.5 // vertical grid step in volts per division
+#define SDIV 8 // horizontal grid step in samples per division
 #define POLLTIMO 5000 // poll timeout in milliseconds
 #define ODEV "/dev/ttyACM0" // oscilloscope device file
 
