@@ -1,5 +1,5 @@
 // X11 GUI for Arduino oscilloscope
-// Copyright (c) 2019 Alexander Mukhin
+// Copyright (c) 2020 Alexander Mukhin
 // MIT License
 
 // buffer and channels
