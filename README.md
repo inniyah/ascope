@@ -70,15 +70,14 @@ pointer.
 #### Customization
 Since the Arduino ADC accepts input in the range 0-5 V only, one would
 probably use an external conversion circuit to fit the signal being
-studied to the range suitable for the ADC. The relation between input
-voltage and ADC reading is set with the `ZS` and `VPS` macros.
+studied to the range suitable for the ADC. Actual input voltage range is
+set with the `Vmin` and `Vmax` constants.
 
 Other adjustable settings are:
 * Number of samples in the buffer (must be the same as in the sketch),
 * Maximum number of channels (must be the same as in the sketch),
 * Oscillogram width and height,
 * Grid steps (Volts per division and Samples per division),
-* Display voltage range,
 * Device file name,
 * Option to save oscillograms to PNG files.
 
