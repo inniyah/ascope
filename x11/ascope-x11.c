@@ -6,9 +6,9 @@
 #define N 256 // number of samples in buffer
 #define MAXCHS 2 // maximum number of channels
 // conversion circuit
-const float Vmin=0.0,Vmax=5.0; // input voltage range
+const float Vmin=-5.0,Vmax=5.0; // input voltage range
 // appearance
-const float VDIV=0.5; // volts per division
+const float VDIV=1.0; // volts per division
 const int SDIV=8; // samples per division
 const int W=512,H=256; // oscillogram width and height
 const int B=10; // border width
