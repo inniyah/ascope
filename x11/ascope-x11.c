@@ -2,19 +2,21 @@
 // Copyright (c) 2019 Alexander Mukhin
 // MIT License
 
+// buffer and channels
 #define N 256 // number of samples in buffer
-#define MAXP 8 // maximum time zoom power, should not exceed log2(N)
 #define MAXCHS 2 // maximum number of channels
+// conversion circuit
+const float Vmin=0.0,Vmax=5.0; // input voltage range
+// appearance
+const float VDIV=0.5; // volts per division
+const int SDIV=8; // samples per division
+const int W=512,H=256; // oscillogram width and height
+const int B=10; // border width
 const int clrs[MAXCHS] = {0x00ff00,0xff0000}; // channel colors
-#define W 512 // oscillogram width
-#define H 256 // oscillogram height
-#define B 10 // border width
-#define DVMIN 0.0 // minimum display voltage
-#define DVMAX 5.0 // maximum display voltage
-#define VDIV 0.5 // vertical grid step in volts per division
-#define SDIV 8 // horizontal grid step in samples per division
-#define POLLTIMO 5000 // poll timeout in milliseconds
+const int MAXP=8; // maximum time zoom power [may not exceed log2(N)]
+// device
 #define ODEV "/dev/ttyACM0" // oscilloscope device file
+const int POLLTIMO=5000; // poll timeout in milliseconds
 
 #include <stdio.h>
 #include <sys/types.h>
@@ -32,7 +34,7 @@ const int clrs[MAXCHS] = {0x00ff00,0xff0000}; // channel colors
 #include <string.h>
 #include <ctype.h>
 
-#define M_PI 3.14159265358979323846
+const float pi=3.14159265358979323846;
 
 // make oscilloscope control word
 unsigned char
@@ -52,7 +54,7 @@ parsecw (unsigned char cw, unsigned char *prescale, unsigned char *slope, unsign
 float
 s2v (unsigned char c) {
 	float t=c/255.0;
-	return DVMIN*(1-t)+DVMAX*t;
+	return Vmin*(1-t)+Vmax*t;
 }
 
 // return time step between samples in microseconds
@@ -68,7 +70,7 @@ makeosc (Display *dpy, Pixmap pm, GC gc, float buf[MAXCHS][N], int chs, int zt, 
 	int ch; // current channel
 	int i; // counter
 	int x,xprev,y,yprev; // coordinates
-	float svmin=DVMIN/zv,svmax=DVMAX/zv; // scaled voltage display limits
+	float svmin=Vmin/zv,svmax=Vmax/zv; // scaled voltage display limits
 	// draw grid lines
 	XSetForeground(dpy,gc,0x404040);
 	for (i=1; i<=floor(svmax/VDIV); ++i) {
@@ -129,7 +131,7 @@ fill_sinc (float sinctbl[MAXP+1][N*N]) {
 		for (k=0; k<N/z; ++k)
 			for (l=0; l<z; ++l)
 				for (m=0; m<N; ++m)
-					*tptr++ = sinc(M_PI*((float)l/z+k-m));
+					*tptr++ = sinc(pi*((float)l/z+k-m));
 	}
 }
 
@@ -501,7 +503,7 @@ main (void) {
 				if (x<W && y<H) {
 					float t,v;
 					t = (x/W)*N*dt(prescale)/zt;
-					v = (DVMAX-(DVMAX-DVMIN)*y/(H-1))/zv;
+					v = (Vmax-(Vmax-Vmin)*y/(H-1))/zv;
 					printf("%.1f us, %.2f V\n",t,v);
 				}
 			}
