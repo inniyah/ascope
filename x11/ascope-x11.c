@@ -33,6 +33,8 @@ const int POLLTIMO=5000; // poll timeout in milliseconds
 #include <math.h>
 #include <string.h>
 #include <ctype.h>
+#include <png.h>
+#include <errno.h>
 
 const float pi=3.14159265358979323846;
 
@@ -457,35 +459,48 @@ main (void) {
 							"%hhu\n",rbuf[ch][n]);
 					fflush(stderr);
 				}
-#if 0
-#include <gd.h>
-#include <errno.h>
 				if (rdy && ks==XK_w) {
 					// write oscillogram to a file
-					gdImagePtr gdimg;
-					XImage *img;
-					FILE *of;
-					const char *ofname="out.png";
-					int i,j;
-					gdimg = gdImageCreateTrueColor(ww,wh);
-					img = XGetImage(dpy,pm,0,0,pw,ph,0xffffffff,ZPixmap);
+					XImage *ximg; // X image
+					png_image pimg; // PNG control structure
+					png_bytep buf,ptr; // PNG image data
+					FILE *of; // output file
+					const char *ofname="out.png"; // file name
+					int i,j; // counters
+					unsigned int p; // pixel
+					// prepare X image
+					ximg = XGetImage(dpy,pm,0,0,pw,ph,0xffffffff,ZPixmap);
+					// prepare PNG image
+					memset(&pimg,0,(sizeof pimg));
+					pimg.version = PNG_IMAGE_VERSION;
+					pimg.width = ww;
+					pimg.height = wh;
+					pimg.format = PNG_COLOR_TYPE_RGB;
+					buf = calloc(1,PNG_IMAGE_SIZE(pimg));
 					// copy image
-					for (i=0; i<pw; ++i)
-						for (j=0; j<ph; ++j)
-							gdImageSetPixel(gdimg,B+i,B+j,XGetPixel(img,i,j));
+					ptr = buf;
+					for (j=0; j<ph; ++j)
+						for (i=0; i<pw; ++i) {
+							ptr = buf+3*(ww*(j+B)+(i+B));
+							p = XGetPixel(ximg,i,j);
+							// assume ximg in RGB order
+							*ptr++ = (p&0xff0000)>>16;
+							*ptr++ = (p&0x00ff00)>>8;
+							*ptr++ = p&0x0000ff;
+						}
 					// open file
 					of = fopen(ofname,"w");
 					if (of==NULL) {
 						fprintf(stderr,"Can't open %s: %s\n",ofname,strerror(errno));
 					} else {
-						gdImagePng(gdimg,of);
+						png_image_write_to_stdio(&pimg,of,0,buf,0,NULL);
 						fclose(of);
-						printf("wrote %s\n", ofname);
+						printf("wrote %s\n",ofname);
 					}
-					gdImageDestroy(gdimg);
-					XDestroyImage(img);
+					// cleanup
+					free(buf);
+					XDestroyImage(ximg);
 				}
-#endif
 				// update and send the new CW
 				if (sendcw) {
 					// make control word
