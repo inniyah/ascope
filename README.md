@@ -61,7 +61,7 @@ key            | action
 `i`            | Toggle interpolation mode (linear or sinc)
 `<space>`      | Freeze or thaw
 `d`            | Dump the raw data to `stderr`
-`w`            | Write the oscillogram to `./out.png` (if compiled)
+`w`            | Write the oscillogram to `./out.png`
 `q`            | Quit
 
 Pressing a mouse button will show the time and voltage values under the
@@ -78,12 +78,10 @@ Other adjustable settings are:
 * Maximum number of channels (must be the same as in the sketch),
 * Oscillogram width and height,
 * Grid steps (Volts per division and Samples per division),
-* Device file name,
-* Option to save oscillograms to PNG files.
+* Device file name.
 
 #### Requirements
-The GUI uses plain Xlib only. Saving oscillograms to files uses GD
-graphics library.
+The GUI requires plain `Xlib` and `libpng`.
 
 #### Compliance
 The GUI source complies with the C99 standard.
