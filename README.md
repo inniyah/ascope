@@ -91,10 +91,15 @@ The source code contains provisions for producing square waveforms in
 the wide range of frequencies (from 500 Hz to 500 kHz), which might be
 useful for testing and calibration.
 
-## Example
+## Examples
 A multivibrator running at 75 kHz (collector and base voltages):
 
 ![](docs/out.png)
+
+A signal conditioning circuit for `-5`..`+5` V inputs, used to produce
+the above oscillogram:
+
+![](docs/cond.svg)
 
 ## License
 MIT.
