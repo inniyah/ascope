@@ -96,7 +96,7 @@ A multivibrator running at 75 kHz (collector and base voltages):
 
 ![](docs/out.png)
 
-A signal conditioning circuit for `-5`..`+5` V inputs, used to produce
+A signal conditioning circuit for -5..+5 V inputs, used to produce
 the above oscillogram:
 
 ![](docs/cond.svg)
