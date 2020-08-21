@@ -170,7 +170,7 @@ main (void) {
 	int fd; // oscilloscope device file descriptor
 	struct termios t; // terminal structure
 	struct pollfd pfds[2]; // poll structures
-	enum {O_LIN=0x1,O_RUN=0x2} mode=3; // mode of operation
+	enum {O_LIN=0x1,O_RUN=0x2,O_SNGL=0x4} mode=3; // mode of operation
 	char str[256]; // string buffer (for status line text and keyboard input)
 	int rdy=0; // ready flag, means oscillogram is received and displayed
 	int sendcw; // update and send new CW flag
@@ -344,6 +344,19 @@ main (void) {
 				// to display the oscillogram
 				evt.type=Expose;
 				XSendEvent(dpy,win,False,0,&evt);
+				// freeze if we're in single sweep mode
+				if (mode&O_SNGL) {
+					mode&=~O_RUN;
+					// remove device fd
+					// from the poll structure
+					// to ignore serial events
+					pfds[0].fd=-1;
+					// change window name
+					XStoreName(dpy,win,\
+					"ascope [frozen]");
+					// quit single sweep mode as well
+					mode&=~O_SNGL;
+				}
 				// raise ready flag
 				rdy=1;
 			}
@@ -482,6 +495,10 @@ main (void) {
 						XStoreName(dpy,win,\
 						"ascope [frozen]");
 					}
+				}
+				if (ks==XK_s) {
+					// enter single sweep mode
+					mode|=O_SNGL;
 				}
 				if (rdy && ks==XK_d) {
 					// dump raw buffer to stderr
