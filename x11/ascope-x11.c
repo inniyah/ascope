@@ -11,7 +11,7 @@ const float VDIV=1.0; // volts per division
 const int SDIV=8; // samples per division
 const int W=512,H=256; // oscillogram width and height
 const int B=10; // border width
-const int clrs[MAXCHS] = {0x00ff00,0xff0000}; // channel colors
+const int clrs[MAXCHS]={0x00ff00,0xff0000}; // channel colors
 const int MAXP=8; // maximum time zoom power [may not exceed log2(N)]
 // device
 #define ODEV "/dev/ttyACM0" // oscilloscope device file
@@ -47,7 +47,7 @@ s2v (unsigned char c) {
 // return time step between samples in microseconds
 float
 dt (struct ctl cs) {
-	int f[] = {1,8,64,256,1024}; // clock division factors
+	int f[]={1,8,64,256,1024}; // clock division factors
 	return f[cs.prescale-1]/16.0;
 }
 
@@ -61,20 +61,20 @@ makeosc (Display *dpy, Pixmap pm, GC gc, float buf[MAXCHS][N], int chs, int zt, 
 	// draw grid lines
 	XSetForeground(dpy,gc,0x404040);
 	for (i=1; i<=floor(svmax/VDIV); ++i) {
-		y = (H-1)*(svmax-i*VDIV)/(svmax-svmin);
+		y=(H-1)*(svmax-i*VDIV)/(svmax-svmin);
 		XDrawLine(dpy,pm,gc,0,y,W-1,y);
 	}
 	for (i=1; i<=floor(-svmin/VDIV); ++i) {
-		y = (H-1)*(svmax+i*VDIV)/(svmax-svmin);
+		y=(H-1)*(svmax+i*VDIV)/(svmax-svmin);
 		XDrawLine(dpy,pm,gc,0,y,W-1,y);
 	}
 	for (i=0; i<=N/(zt*SDIV); ++i) {
-		x = i*zt*SDIV*(W-1)/N;
+		x=i*zt*SDIV*(W-1)/N;
 		XDrawLine(dpy,pm,gc,x,0,x,H-1);
 	}	
 	// draw zero voltage axis
 	XSetForeground(dpy,gc,0x808080);
-	y = (H-1)*svmax/(svmax-svmin);
+	y=(H-1)*svmax/(svmax-svmin);
 	XDrawLine(dpy,pm,gc,0,y,W-1,y);
 	if (!buf)
 		// return if no data available
@@ -84,14 +84,14 @@ makeosc (Display *dpy, Pixmap pm, GC gc, float buf[MAXCHS][N], int chs, int zt, 
 	for (ch=0; ch<chs; ++ch) {
 		XSetForeground(dpy,gc,clrs[ch]);
 		for (i=0; i<N; ++i) {
-			x = i*W/N;
-			y = (H-1)*(svmax-buf[ch][i])/(svmax-svmin);
+			x=i*W/N;
+			y=(H-1)*(svmax-buf[ch][i])/(svmax-svmin);
 			if (i)
 				XDrawLine(dpy,pm,gc,xprev,yprev,x,y);
 			else
 				XDrawPoint(dpy,pm,gc,0,y);
-			xprev = x;
-			yprev = y;
+			xprev=x;
+			yprev=y;
 		}
 	}
 }
@@ -113,12 +113,12 @@ fill_sinc (float sinctbl[MAXP+1][N*N]) {
 	int k,l,m; // indices
 	float *tptr; // pointer
 	for (p=0; p<=MAXP; ++p) {
-		z = 1<<p;
-		tptr = sinctbl[p];
+		z=1<<p;
+		tptr=sinctbl[p];
 		for (k=0; k<N/z; ++k)
 			for (l=0; l<z; ++l)
 				for (m=0; m<N; ++m)
-					*tptr++ = sinc(pi*((float)l/z+k-m));
+					*tptr++=sinc(pi*((float)l/z+k-m));
 	}
 }
 
@@ -129,8 +129,8 @@ interp_lin (int z, const float *buf, float *zbuf) {
 	float t; // parameter
 	for (k=0; k<N/z; ++k)
 		for (l=0; l<z; ++l) {
-			t = (float)l/z;
-			*zbuf++ = buf[k]*(1-t)+buf[k+1]*t;
+			t=(float)l/z;
+			*zbuf++=buf[k]*(1-t)+buf[k+1]*t;
 		}
 }
 
@@ -141,10 +141,10 @@ interp_sinc (int z, const float *tbl, const float *buf, float *zbuf) {
 	float s; // sum
 	for (k=0; k<N/z; ++k)
 		for (l=0; l<z; ++l) {
-			s = 0.0;
+			s=0.0;
 			for (m=0; m<N; ++m)
-				s += (buf[m]-buf[0])**tbl++;
-			*zbuf++ = s+buf[0];
+				s+=(buf[m]-buf[0])**tbl++;
+			*zbuf++=s+buf[0];
 		}
 }
 
@@ -185,47 +185,47 @@ main (void) {
 	fill_sinc(sinctbl);
 
 	// open device
-	fd = open(ODEV,O_RDWR);
+	fd=open(ODEV,O_RDWR);
 	if (fd==-1) {
 		fprintf(stderr,"Cannot open device\n");
 		return 1;
 	}
 	// put it to non-canonical mode
 	tcgetattr(fd,&t);
-	t.c_iflag &= ~(ICRNL|IXON);
-	t.c_oflag &= ~OPOST;
-	t.c_cflag &= ~HUPCL;
-	t.c_lflag &= ~(ICANON|ECHO|IEXTEN|ISIG);
+	t.c_iflag&=~(ICRNL|IXON);
+	t.c_oflag&=~OPOST;
+	t.c_cflag&=~HUPCL;
+	t.c_lflag&=~(ICANON|ECHO|IEXTEN|ISIG);
 	tcsetattr(fd,TCSANOW,&t);
 
 	// init X
-	dpy = XOpenDisplay(NULL);
+	dpy=XOpenDisplay(NULL);
 	if (dpy==NULL) {
 		fprintf(stderr,"Cannot open display\n");
 		return 1;
 	}
-	scr = DefaultScreen(dpy);
-	gc = DefaultGC(dpy,scr);
-	fs = XQueryFont(dpy,XGContextFromGC(gc));
-	slh = fs->ascent+fs->descent;
-	ww = W+2*B;
-	wh = H+slh+2*B;
-	win = XCreateSimpleWindow(dpy,RootWindow(dpy,scr),0,0,ww,wh,0,0,0);
+	scr=DefaultScreen(dpy);
+	gc=DefaultGC(dpy,scr);
+	fs=XQueryFont(dpy,XGContextFromGC(gc));
+	slh=fs->ascent+fs->descent;
+	ww=W+2*B;
+	wh=H+slh+2*B;
+	win=XCreateSimpleWindow(dpy,RootWindow(dpy,scr),0,0,ww,wh,0,0,0);
 	XSelectInput(dpy,win,ExposureMask|KeyPressMask|ButtonPressMask);
 	XDefineCursor(dpy,win,XCreateFontCursor(dpy,XC_crosshair));
 	XStoreName(dpy,win,"ascope");
 	XMapWindow(dpy,win);
-	pw = W;
-	ph = H+slh;
-	pm = XCreatePixmap(dpy,win,pw,ph,DefaultDepth(dpy,scr));
+	pw=W;
+	ph=H+slh;
+	pm=XCreatePixmap(dpy,win,pw,ph,DefaultDepth(dpy,scr));
 	XFillRectangle(dpy,pm,gc,0,0,pw,ph);
 	XFlush(dpy);
 
 	// prepare pollfd structures
-	pfds[0].fd = fd;
-	pfds[0].events = POLLIN|POLLERR;
-	pfds[1].fd = ConnectionNumber(dpy);
-	pfds[1].events = POLLIN;
+	pfds[0].fd=fd;
+	pfds[0].events=POLLIN|POLLERR;
+	pfds[1].fd=ConnectionNumber(dpy);
+	pfds[1].events=POLLIN;
 
 	// flush input buffer as it might contain invalid data
 	// received before the terminal settings took effect
@@ -243,10 +243,10 @@ main (void) {
 				// draw empty grid
 				makeosc(dpy,pm,gc,NULL,cs.chs,zt,zv);
 				// send itself an exposure event
-				evt.type = Expose;
+				evt.type=Expose;
 				XSendEvent(dpy,win,False,0,&evt);
 				// clear ready flag
-				rdy = 0;
+				rdy=0;
 			}
 		}
 		// exit if device reported error
@@ -265,9 +265,9 @@ main (void) {
 				for (ch=0; ch<cs.chs; ++ch)
 					for (n=0; n<N; ++n) {
 						read(fd,&c,1);
-						rbuf[ch][n] = c;
+						rbuf[ch][n]=c;
 						// convert sample to voltage
-						vbuf[ch][n] = s2v(c);
+						vbuf[ch][n]=s2v(c);
 					}
 				// do interpolation (zoom)
 				for (ch=0; ch<cs.chs; ++ch)
@@ -322,10 +322,10 @@ main (void) {
 				XDrawString(dpy,pm,gc,0,ph-1,str,strlen(str));
 				// send itself an exposure event
 				// to display the oscillogram
-				evt.type = Expose;
+				evt.type=Expose;
 				XSendEvent(dpy,win,False,0,&evt);
 				// raise ready flag
-				rdy = 1;
+				rdy=1;
 			}
 		}
 		// process X events, if any
@@ -339,28 +339,28 @@ main (void) {
 			if (evt.type==KeyPress) {
 				XLookupString(&evt.xkey,str,1,&ks,NULL);
 				// clear update CW flag
-				sendcw = 0;
+				sendcw=0;
 				if (ks==XK_q) {
 					// quit
 					return 0;
 				}
 				if (rdy && mode&O_RUN && isdigit(str[0])) {
 					// set number of channels
-					str[1] = 0;
-					cs.chs = atoi(str);
+					str[1]=0;
+					cs.chs=atoi(str);
 					if (cs.chs<1)
-						cs.chs = 1;
+						cs.chs=1;
 					if (cs.chs>MAXCHS)
-						cs.chs = MAXCHS;
+						cs.chs=MAXCHS;
 					// request sending of the new CW
-					sendcw = 1;
+					sendcw=1;
 				}
 				if (rdy && mode&O_RUN && ks==XK_plus) {
 					// increase sampling rate
 					if (cs.prescale>1) {
 						--cs.prescale;
 						// request sending of the new CW
-						sendcw = 1;
+						sendcw=1;
 					}
 				}
 				if (rdy && mode&O_RUN && ks==XK_minus) {
@@ -368,33 +368,33 @@ main (void) {
 					if (cs.prescale<5) {
 						++cs.prescale;
 						// request sending of the new CW
-						sendcw = 1;
+						sendcw=1;
 					}
 				}
 				if (rdy && mode&O_RUN && ks==XK_slash) {
 					// trigger on rising edge
-					cs.slope = 1;
+					cs.slope=1;
 					// request sending of the new CW
-					sendcw = 1;
+					sendcw=1;
 				}
 				if (rdy && mode&O_RUN && ks==XK_backslash) {
 					// trigger on falling edge
-					cs.slope = 0;
+					cs.slope=0;
 					// request sending of the new CW
-					sendcw = 1;
+					sendcw=1;
 				}
 				if (rdy && mode&O_RUN && ks==XK_Right) {
 					// increase time zoom
 					if (p<MAXP) {
 						++p;
-						zt = 1<<p;
+						zt=1<<p;
 					}
 				}
 				if (rdy && mode&O_RUN && ks==XK_Left) {
 					// decrease time zoom
 					if (p>0) {
 						--p;
-						zt = 1<<p;
+						zt=1<<p;
 					}
 				}
 				if (rdy && mode&O_RUN && ks==XK_Up) {
@@ -408,15 +408,15 @@ main (void) {
 				}
 				if (rdy && mode&O_RUN && p && ks==XK_i) {
 					// toggle interpolation mode
-					mode ^= O_LIN;
+					mode^=O_LIN;
 				}
 				if (ks==XK_space) {
 					// toggle run mode
-					mode ^= O_RUN;
+					mode^=O_RUN;
 					if (mode&O_RUN) {
 						// return device fd
 						// to the poll structure
-						pfds[0].fd = fd;
+						pfds[0].fd=fd;
 						// flush input buffer
 						// when resuming operation
 						// to get rid of the data
@@ -428,7 +428,7 @@ main (void) {
 						// remove device fd
 						// from the poll structure
 						// to ignore serial events
-						pfds[0].fd = -1;
+						pfds[0].fd=-1;
 						// change window name
 						XStoreName(dpy,win,\
 						"ascope [frozen]");
@@ -452,27 +452,27 @@ main (void) {
 					int i,j; // counters
 					unsigned int p; // pixel
 					// prepare X image
-					ximg = XGetImage(dpy,pm,0,0,pw,ph,0xffffffff,ZPixmap);
+					ximg=XGetImage(dpy,pm,0,0,pw,ph,0xffffffff,ZPixmap);
 					// prepare PNG image
 					memset(&pimg,0,(sizeof pimg));
-					pimg.version = PNG_IMAGE_VERSION;
-					pimg.width = ww;
-					pimg.height = wh;
-					pimg.format = PNG_COLOR_TYPE_RGB;
-					buf = calloc(1,PNG_IMAGE_SIZE(pimg));
+					pimg.version=PNG_IMAGE_VERSION;
+					pimg.width=ww;
+					pimg.height=wh;
+					pimg.format=PNG_COLOR_TYPE_RGB;
+					buf=calloc(1,PNG_IMAGE_SIZE(pimg));
 					// copy image
-					ptr = buf;
+					ptr=buf;
 					for (j=0; j<ph; ++j)
 						for (i=0; i<pw; ++i) {
-							ptr = buf+3*(ww*(j+B)+(i+B));
-							p = XGetPixel(ximg,i,j);
+							ptr=buf+3*(ww*(j+B)+(i+B));
+							p=XGetPixel(ximg,i,j);
 							// assume ximg in RGB order
-							*ptr++ = (p&0xff0000)>>16;
-							*ptr++ = (p&0x00ff00)>>8;
-							*ptr++ = p&0x0000ff;
+							*ptr++=(p&0xff0000)>>16;
+							*ptr++=(p&0x00ff00)>>8;
+							*ptr++=p&0x0000ff;
 						}
 					// open file
-					of = fopen(ofname,"w");
+					of=fopen(ofname,"w");
 					if (of==NULL) {
 						fprintf(stderr,"Can't open %s: %s\n",ofname,strerror(errno));
 					} else {
@@ -487,7 +487,7 @@ main (void) {
 				// update and send the new CW
 				if (sendcw) {
 					// make control word
-					cw = makecw(cs);
+					cw=makecw(cs);
 					// send it to the device
 					write(fd,&cw,1);
 					tcflush(fd,TCOFLUSH);
@@ -496,12 +496,12 @@ main (void) {
 			if (rdy && evt.type==ButtonPress) {
 				// show time and voltage below mouse pointer
 				float x,y;
-				x = evt.xbutton.x-B;
-				y = evt.xbutton.y-B;
+				x=evt.xbutton.x-B;
+				y=evt.xbutton.y-B;
 				if (x<W && y<H) {
 					float t,v;
-					t = (x/W)*N*dt(cs)/zt;
-					v = (Vmax-(Vmax-Vmin)*y/(H-1))/zv;
+					t=(x/W)*N*dt(cs)/zt;
+					v=(Vmax-(Vmax-Vmin)*y/(H-1))/zv;
 					printf("%.1f us, %.2f V\n",t,v);
 				}
 			}
