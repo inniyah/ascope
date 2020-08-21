@@ -47,8 +47,14 @@ s2v (unsigned char c) {
 // return time step between samples in microseconds
 float
 dt (struct ctl cs) {
-	int f[]={1,8,64,256,1024}; // clock division factors
-	return f[cs.prescale-1]/16.0;
+	if (cs.samp==1) {
+		// equivalent-time
+		int f[]={1,8,64,256,1024}; // clock division factors
+		return f[cs.prescale-1]/16.0;
+	} else {
+		// real-time
+		return (13*(1<<cs.prescale))/16.0;
+	}
 }
 
 // draw oscillogram on a pixmap
@@ -344,6 +350,11 @@ main (void) {
 					// quit
 					return 0;
 				}
+				if (rdy && mode&O_RUN && ks==XK_m) {
+					// toggle sampling mode
+					cs.samp=(cs.samp==1)?0:1;
+					sendcw=1;
+				}
 				if (rdy && mode&O_RUN && isdigit(str[0])) {
 					// set number of channels
 					str[1]=0;
@@ -355,18 +366,38 @@ main (void) {
 				}
 				if (rdy && mode&O_RUN && ks==XK_plus) {
 					// increase sampling rate
-					if (cs.prescale>1) {
-						--cs.prescale;
-						// request sending of the new CW
-						sendcw=1;
+					if (cs.samp==1) {
+						// equivalent-time
+						if (cs.prescale>1) {
+							--cs.prescale;
+							// send new CW
+							sendcw=1;
+						}
+					} else {
+						// real-time
+						if (cs.prescale>2) {
+							--cs.prescale;
+							// send new CW
+							sendcw=1;
+						}
 					}
 				}
 				if (rdy && mode&O_RUN && ks==XK_minus) {
 					// decrease sampling rate
-					if (cs.prescale<5) {
-						++cs.prescale;
-						// request sending of the new CW
-						sendcw=1;
+					if (cs.samp==1) {
+						// equivalent-time
+						if (cs.prescale<5) {
+							++cs.prescale;
+							// send new CW
+							sendcw=1;
+						}
+					} else {
+						// real-time
+						if (cs.prescale<7) {
+							++cs.prescale;
+							// send new CW
+							sendcw=1;
+						}
 					}
 				}
 				if (rdy && mode&O_RUN && ks==XK_slash) {
