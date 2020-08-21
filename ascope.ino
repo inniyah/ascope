@@ -157,6 +157,7 @@ init_mode (struct ctl *cs) {
 	if (cs->samp==1) {
 		// equivalent-time sampling
 		// set initial control structure fields
+		cs->trig=1; // normal triggering
 		cs->chs=1; // one channel
 		cs->slope=1; // trigger on rising edge
 		cs->prescale=1; // fastest sampling rate
