@@ -2,9 +2,8 @@
 // Copyright (c) 2020 Alexander Mukhin
 // MIT License
 
-// buffer and channels
-#define N 256 // number of samples in buffer
-#define MAXCHS 2 // maximum number of channels
+#include "ascope.h"
+
 // conversion circuit
 const float Vmin=-5.0,Vmax=5.0; // input voltage range
 // appearance
@@ -38,20 +37,6 @@ const int POLLTIMO=5000; // poll timeout in milliseconds
 
 const float pi=3.14159265358979323846;
 
-// make oscilloscope control word
-unsigned char
-makecw (unsigned char prescale, unsigned char slope, unsigned char chs) {
-	return (chs<<4)+(slope<<3)+prescale;
-}
-
-// parse oscilloscope control word
-void
-parsecw (unsigned char cw, unsigned char *prescale, unsigned char *slope, unsigned char *chs) {
-	*prescale = cw&0x7;
-	*slope = (cw&0x8)>>3;
-	*chs = (cw&0x70)>>4;
-}
-
 // sample to voltage conversion
 float
 s2v (unsigned char c) {
@@ -61,9 +46,9 @@ s2v (unsigned char c) {
 
 // return time step between samples in microseconds
 float
-dt (unsigned char prescale) {
+dt (struct ctl cs) {
 	int f[] = {1,8,64,256,1024}; // clock division factors
-	return f[prescale-1]/16.0;
+	return f[cs.prescale-1]/16.0;
 }
 
 // draw oscillogram on a pixmap
@@ -166,10 +151,8 @@ interp_sinc (int z, const float *tbl, const float *buf, float *zbuf) {
 int
 main (void) {
 	unsigned char rbuf[MAXCHS][N]; // raw data buffer
-	unsigned char prescale; // timer clock prescale value
-	unsigned char slope; // trigger slope
-	unsigned char chs; // number of channels
 	unsigned char cw; // oscilloscope control word
+	struct ctl cs; // oscilloscope control structure
 	unsigned char c; // data sample
 	int ch; // channel index
 	int n; // sample index
@@ -258,7 +241,7 @@ main (void) {
 				XSetForeground(dpy,gc,0x000000);
 				XFillRectangle(dpy,pm,gc,0,0,pw,ph);
 				// draw empty grid
-				makeosc(dpy,pm,gc,NULL,chs,zt,zv);
+				makeosc(dpy,pm,gc,NULL,cs.chs,zt,zv);
 				// send itself an exposure event
 				evt.type = Expose;
 				XSendEvent(dpy,win,False,0,&evt);
@@ -277,9 +260,9 @@ main (void) {
 				// got sync
 				// read and parse device control word
 				read(fd,&cw,1);
-				parsecw(cw,&prescale,&slope,&chs);
+				parsecw(cw,&cs);
 				// read data buffers
-				for (ch=0; ch<chs; ++ch)
+				for (ch=0; ch<cs.chs; ++ch)
 					for (n=0; n<N; ++n) {
 						read(fd,&c,1);
 						rbuf[ch][n] = c;
@@ -287,7 +270,7 @@ main (void) {
 						vbuf[ch][n] = s2v(c);
 					}
 				// do interpolation (zoom)
-				for (ch=0; ch<chs; ++ch)
+				for (ch=0; ch<cs.chs; ++ch)
 					if (zt>1 && mode&O_LIN)
 						// linear interpolation
 						interp_lin(zt,vbuf[ch],zbuf[ch]);
@@ -303,38 +286,38 @@ main (void) {
 				XSetForeground(dpy,gc,0x000000);
 				XFillRectangle(dpy,pm,gc,0,0,pw,ph);
 				// draw oscillogram
-				makeosc(dpy,pm,gc,zbuf,chs,zt,zv);
+				makeosc(dpy,pm,gc,zbuf,cs.chs,zt,zv);
 				// draw status line
 				if (zt==1 && zv==1)
 					snprintf(str,256,
 					"%.1f V/div, %.1f us/div, "
 					"%d ch%s, %c",
-					VDIV,SDIV*dt(prescale),
-					chs,chs>1?"s":"",
-					slope?'/':'\\');
+					VDIV,SDIV*dt(cs),
+					cs.chs,cs.chs>1?"s":"",
+					cs.slope?'/':'\\');
 				else if (zt>1 && zv==1)
 					snprintf(str,256,
 					"%.1f V/div, %.1f us/div (%dx %s), "
 					"%d ch%s, %c",
-					VDIV,SDIV*dt(prescale),
+					VDIV,SDIV*dt(cs),
 					zt,(mode&O_LIN)?"linear":"sinc",
-					chs,chs>1?"s":"",
-					slope?'/':'\\');
+					cs.chs,cs.chs>1?"s":"",
+					cs.slope?'/':'\\');
 				else if (zt==1 && zv>1)
 					snprintf(str,256,
 					"%.1f V/div (%dx), %.1f us/div, "
 					"%d ch%s, %c",
-					VDIV,zv,SDIV*dt(prescale),
-					chs,chs>1?"s":"",
-					slope?'/':'\\');
+					VDIV,zv,SDIV*dt(cs),
+					cs.chs,cs.chs>1?"s":"",
+					cs.slope?'/':'\\');
 				else
 					snprintf(str,256,
 					"%.1f V/div (%dx), %.1f us/div (%dx %s), "
 					"%d ch%s, %c",
-					VDIV,zv,SDIV*dt(prescale),
+					VDIV,zv,SDIV*dt(cs),
 					zt,(mode&O_LIN)?"linear":"sinc",
-					chs,chs>1?"s":"",
-					slope?'/':'\\');
+					cs.chs,cs.chs>1?"s":"",
+					cs.slope?'/':'\\');
 				XSetForeground(dpy,gc,0xffffff);
 				XDrawString(dpy,pm,gc,0,ph-1,str,strlen(str));
 				// send itself an exposure event
@@ -364,39 +347,39 @@ main (void) {
 				if (rdy && mode&O_RUN && isdigit(str[0])) {
 					// set number of channels
 					str[1] = 0;
-					chs = atoi(str);
-					if (chs<1)
-						chs = 1;
-					if (chs>MAXCHS)
-						chs = MAXCHS;
+					cs.chs = atoi(str);
+					if (cs.chs<1)
+						cs.chs = 1;
+					if (cs.chs>MAXCHS)
+						cs.chs = MAXCHS;
 					// request sending of the new CW
 					sendcw = 1;
 				}
 				if (rdy && mode&O_RUN && ks==XK_plus) {
 					// increase sampling rate
-					if (prescale>1) {
-						--prescale;
+					if (cs.prescale>1) {
+						--cs.prescale;
 						// request sending of the new CW
 						sendcw = 1;
 					}
 				}
 				if (rdy && mode&O_RUN && ks==XK_minus) {
 					// decrease sampling rate
-					if (prescale<5) {
-						++prescale;
+					if (cs.prescale<5) {
+						++cs.prescale;
 						// request sending of the new CW
 						sendcw = 1;
 					}
 				}
 				if (rdy && mode&O_RUN && ks==XK_slash) {
 					// trigger on rising edge
-					slope = 1;
+					cs.slope = 1;
 					// request sending of the new CW
 					sendcw = 1;
 				}
 				if (rdy && mode&O_RUN && ks==XK_backslash) {
 					// trigger on falling edge
-					slope = 0;
+					cs.slope = 0;
 					// request sending of the new CW
 					sendcw = 1;
 				}
@@ -453,7 +436,7 @@ main (void) {
 				}
 				if (rdy && ks==XK_d) {
 					// dump raw buffer to stderr
-					for (ch=0; ch<chs; ++ch)
+					for (ch=0; ch<cs.chs; ++ch)
 						for (n=0; n<N; ++n)
 							fprintf(stderr,\
 							"%hhu\n",rbuf[ch][n]);
@@ -504,7 +487,7 @@ main (void) {
 				// update and send the new CW
 				if (sendcw) {
 					// make control word
-					cw = makecw(prescale,slope,chs);
+					cw = makecw(cs);
 					// send it to the device
 					write(fd,&cw,1);
 					tcflush(fd,TCOFLUSH);
@@ -517,7 +500,7 @@ main (void) {
 				y = evt.xbutton.y-B;
 				if (x<W && y<H) {
 					float t,v;
-					t = (x/W)*N*dt(prescale)/zt;
+					t = (x/W)*N*dt(cs)/zt;
 					v = (Vmax-(Vmax-Vmin)*y/(H-1))/zv;
 					printf("%.1f us, %.2f V\n",t,v);
 				}

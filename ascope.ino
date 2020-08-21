@@ -2,29 +2,9 @@
 // Copyright (c) 2019 Alexander Mukhin
 // MIT License
 
-#define N 256 // samples in buffer
-#define MAXCHS 2 // maximum number of channels
-
 // global variables
 unsigned char buf[MAXCHS][N]; // data buffer
-unsigned char prescale=1; // timer clock prescale value
-unsigned char slope=1; // trigger on rising (1) or falling (0) edge
-unsigned char chs=1; // current number of channels
-
-// make oscilloscope control word
-unsigned char
-makecw (unsigned char prescale, unsigned char slope, unsigned char chs) {
-	return (chs<<4)+(slope<<3)+prescale;
-}
-
-// parse oscilloscope control word
-void
-parsecw (unsigned char cw, \
-	 unsigned char *prescale, unsigned char *slope, unsigned char *chs) {
-	*prescale = cw&0x7;
-	*slope = (cw&0x8)>>3;
-	*chs = (cw&0x70)>>4;
-}
+struct ctl cs={1,0,1,1,1}; // control structure
 
 // volatile variables
 volatile int n; // current sample number
@@ -38,7 +18,7 @@ volatile unsigned char rdy; // ready flag
 // AC ISR
 ISR(ANALOG_COMP_vect) {
 	// start timer
-	TCCR1B |= prescale;
+	TCCR1B |= cs.prescale;
 	// disable AC interrupts
 	cbi(ACSR,ACIE);
 	// turn on acquisition LED
@@ -71,7 +51,7 @@ ISR(ADC_vect,ISR_NOBLOCK) {
 		// consider the next channel
 		++ch;
 		// any channels left?
-		if (ch<chs) {
+		if (ch<cs.chs) {
 			// select the next channel
 			ADMUX = (ADMUX&B11110000)+(ch&B00001111);
 		} else {
@@ -173,7 +153,7 @@ loop () {
 	n = 0;
 	OCR1B = 1;
 	// set trigger slope
-	if (slope)
+	if (cs.slope)
 		// trigger on rising edge
 		sbi(ACSR,ACIS0);
 	else
@@ -185,8 +165,8 @@ loop () {
 	while (!rdy);
 	// write out data
 	Serial.write(0); // sync marker
-	Serial.write(makecw(prescale,slope,chs)); // current control word
-	for (ch=0; ch<chs; ++ch)
+	Serial.write(makecw(cs)); // current control word
+	for (ch=0; ch<cs.chs; ++ch)
 		for (n=0; n<N; ++n) {
 			c = buf[ch][n];
 			// we write 1 instead of 0
@@ -201,6 +181,6 @@ loop () {
 	if (Serial.available()) {
 		c = Serial.read();
 		// parse control word
-		parsecw(c,&prescale,&slope,&chs);
+		parsecw(c,&cs);
 	}
 }
