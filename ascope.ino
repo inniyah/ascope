@@ -248,24 +248,32 @@ loop () {
 	// mode-specific start
 	start_mode(cs);
 	// wait for the data to be ready
-	while (!rdy);
-	// write out data
-	Serial.write(0); // sync marker
-	Serial.write(makecw(cs)); // current control word
-	for (ch=0; ch<cs.chs; ++ch)
-		for (n=0; n<N; ++n) {
-			c=buf[ch][n];
-			// we write 1 instead of 0
-			// to avoid confusion with the sync marker
-			if (c==0) c=1;
-	    		Serial.write(c);
+	do {
+		// read the new control word, if available
+		if (Serial.available()) {
+			// stop current sweep by disabling AC interrupt
+			cbi(ACSR,ACIE);
+			// read and parse the new control word
+			c=Serial.read();
+			parsecw(c,&cs);
+			// clear ready flag and start new sweep
+			rdy=0;
+			break;
 		}
-	// wait for the transmission to complete
-	Serial.flush();
-	// read the new control word, if available
-	if (Serial.available()) {
-		c=Serial.read();
-		// parse control word
-		parsecw(c,&cs);
+	} while (!rdy);
+	// write out data
+	if (rdy) {
+		Serial.write(0); // sync marker
+		Serial.write(makecw(cs)); // current control word
+		for (ch=0; ch<cs.chs; ++ch)
+			for (n=0; n<N; ++n) {
+				c=buf[ch][n];
+				// we write 1 instead of 0
+				// to avoid confusion with the sync marker
+				if (c==0) c=1;
+				Serial.write(c);
+			}
+		// wait for the transmission to complete
+		Serial.flush();
 	}
 }
