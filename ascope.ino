@@ -191,35 +191,6 @@ setup () {
 	cs.samp=1;
 	// mode-specific init
 	init_mode(&cs);
-#if 0
-// enable calibration PWM output
-// clear TC2 control registers
-TCCR2A=0;
-TCCR2B=0;
-TIMSK2=0;
-// set output compare register
-OCR2A=255; // 31.25 kHz
-//OCR2A=127; // 62.5 kHz
-//OCR2A=63; // 125 kHz
-//OCR2A=50;
-//OCR2A=41;
-//OCR2A=35;
-//OCR2A=31; // 250 kHz
-//OCR2A=26;
-//OCR2A=23; // 333 kHz
-//OCR2A=19;
-//OCR2A=15; // 500 kHz
-// toggle OC2A on compare
-sbi(TCCR2A,COM2A0);
-// enable CTC (clear counter on compare) mode
-sbi(TCCR2A,WGM21);
-// use PB3 as output
-pinMode(11,OUTPUT);
-// set clock speed
-sbi(TCCR2B,CS20); // full clk_io
-//sbi(TCCR2B,CS21); // clk_io/8
-//sbi(TCCR2B,CS22); // clk_io/64
-#endif
 }
 
 void
