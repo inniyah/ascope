@@ -296,32 +296,46 @@ main (void) {
 				// draw status line
 				if (zt==1 && zv==1)
 					snprintf(str,256,
-					"%.1f V/div, %.1f us/div, "
-					"%d ch%s, %c",
-					VDIV,SDIV*dt(cs),
+					"%.1f V/div, "
+					"%.1f us/div %cT, "
+					"%d ch%s, "
+					"%c",
+					VDIV,
+					SDIV*dt(cs),
+					cs.samp?'E':'R',
 					cs.chs,cs.chs>1?"s":"",
 					cs.slope?'/':'\\');
 				else if (zt>1 && zv==1)
 					snprintf(str,256,
-					"%.1f V/div, %.1f us/div (%dx %s), "
-					"%d ch%s, %c",
-					VDIV,SDIV*dt(cs),
-					zt,(mode&O_LIN)?"linear":"sinc",
+					"%.1f V/div, "
+					"%.1f us/div (%dx %s) %cT, "
+					"%d ch%s, "
+					"%c",
+					VDIV,
+					SDIV*dt(cs),zt,(mode&O_LIN)?"linear":"sinc",
+					cs.samp?'E':'R',
 					cs.chs,cs.chs>1?"s":"",
 					cs.slope?'/':'\\');
 				else if (zt==1 && zv>1)
 					snprintf(str,256,
-					"%.1f V/div (%dx), %.1f us/div, "
-					"%d ch%s, %c",
-					VDIV,zv,SDIV*dt(cs),
+					"%.1f V/div (%dx), "
+					"%.1f us/div %cT, "
+					"%d ch%s, "
+					"%c",
+					VDIV,zv,
+					SDIV*dt(cs),
+					cs.samp?'E':'R',
 					cs.chs,cs.chs>1?"s":"",
 					cs.slope?'/':'\\');
 				else
 					snprintf(str,256,
-					"%.1f V/div (%dx), %.1f us/div (%dx %s), "
-					"%d ch%s, %c",
-					VDIV,zv,SDIV*dt(cs),
-					zt,(mode&O_LIN)?"linear":"sinc",
+					"%.1f V/div (%dx), "
+					"%.1f us/div (%dx %s) %cT, "
+					"%d ch%s, "
+					"%c",
+					VDIV,zv,
+					SDIV*dt(cs),zt,(mode&O_LIN)?"linear":"sinc",
+					cs.samp?'E':'R',
 					cs.chs,cs.chs>1?"s":"",
 					cs.slope?'/':'\\');
 				XSetForeground(dpy,gc,0xffffff);
