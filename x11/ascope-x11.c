@@ -304,7 +304,7 @@ main (void) {
 					SDIV*dt(cs),
 					cs.samp?'E':'R',
 					cs.chs,cs.chs>1?"s":"",
-					cs.slope?'/':'\\');
+					cs.trig?cs.slope?'/':'\\':'A');
 				else if (zt>1 && zv==1)
 					snprintf(str,256,
 					"%.1f V/div, "
@@ -315,7 +315,7 @@ main (void) {
 					SDIV*dt(cs),zt,(mode&O_LIN)?"linear":"sinc",
 					cs.samp?'E':'R',
 					cs.chs,cs.chs>1?"s":"",
-					cs.slope?'/':'\\');
+					cs.trig?cs.slope?'/':'\\':'A');
 				else if (zt==1 && zv>1)
 					snprintf(str,256,
 					"%.1f V/div (%dx), "
@@ -326,7 +326,7 @@ main (void) {
 					SDIV*dt(cs),
 					cs.samp?'E':'R',
 					cs.chs,cs.chs>1?"s":"",
-					cs.slope?'/':'\\');
+					cs.trig?cs.slope?'/':'\\':'A');
 				else
 					snprintf(str,256,
 					"%.1f V/div (%dx), "
@@ -337,7 +337,7 @@ main (void) {
 					SDIV*dt(cs),zt,(mode&O_LIN)?"linear":"sinc",
 					cs.samp?'E':'R',
 					cs.chs,cs.chs>1?"s":"",
-					cs.slope?'/':'\\');
+					cs.trig?cs.slope?'/':'\\':'A');
 				XSetForeground(dpy,gc,0xffffff);
 				XDrawString(dpy,pm,gc,0,ph-1,str,strlen(str));
 				// send itself an exposure event
@@ -413,6 +413,12 @@ main (void) {
 							sendcw=1;
 						}
 					}
+				}
+				if (mode&O_RUN && ks==XK_a) {
+					// toggle auto-trigger mode
+					cs.trig=cs.trig?0:1;
+					// request sending of the new CW
+					sendcw=1;
 				}
 				if (rdy && mode&O_RUN && ks==XK_slash) {
 					// trigger on rising edge
