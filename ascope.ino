@@ -193,17 +193,11 @@ setup () {
 	init_mode(&cs);
 }
 
+// start steps common to all sampling modes
 void
-loop () {
-	unsigned char c;
+start_common (void) {
 	// clear ready flag
 	rdy=0;
-	// select channel 0
-	ch=0;
-	ADMUX&=B11110000;
-	// set initial position and delay
-	n=0;
-	OCR1B=1;
 	// set trigger slope
 	if (cs.slope)
 		// trigger on rising edge
@@ -211,8 +205,48 @@ loop () {
 	else
 		// trigger on falling edge
 		cbi(ACSR,ACIS0);
-	// enable analog comparator interrupt
-	sbi(ACSR,ACIE);
+	// select channel 0
+	ch=0;
+	ADMUX&=B11110000;
+}
+
+// start-up steps specific to the selected sampling mode
+void
+start_mode (struct ctl cs) {
+	if (cs.samp==1) {
+		// equivalent-time sampling
+		// set initial position and delay
+		n=0;
+		OCR1B=1;
+		// enable analog comparator interrupt
+		sbi(ACSR,ACIE);
+	} else {
+		// real-time sampling
+		// set ADC clock prescale value
+		ADCSRA=(ADCSRA&B11111000)+(B00000111&cs.prescale);
+		// start ADC
+		sbi(ADCSRA,ADEN);
+		sbi(ADCSRA,ADSC);
+		// deal with trigger modes
+		if (cs.trig)
+			// normal triggering
+			// enable AC interrupt
+			sbi(ACSR,ACIE);
+		else
+			// auto trigger
+			// call AC ISR manually
+			while (ch<cs.chs)
+				ANALOG_COMP_vect();
+	}
+}
+
+void
+loop () {
+	unsigned char c;
+	// common start
+	start_common();
+	// mode-specific start
+	start_mode(cs);
 	// wait for the data to be ready
 	while (!rdy);
 	// write out data
