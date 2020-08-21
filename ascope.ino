@@ -17,12 +17,64 @@ volatile unsigned char rdy; // ready flag
 
 // AC ISR
 ISR(ANALOG_COMP_vect) {
-	// start timer
-	TCCR1B|=cs.prescale;
-	// disable AC interrupts
-	cbi(ACSR,ACIE);
-	// turn on acquisition LED
-	PORTB|=B00100000;
+	if (cs.samp==1) {
+		// equivalent-time sampling
+		// start timer
+		TCCR1B|=cs.prescale;
+		// disable AC interrupts
+		cbi(ACSR,ACIE);
+		// turn on acquisition LED
+		PORTB|=B00100000;
+	} else {
+		// real-time sampling
+		register int n;
+		register unsigned char *bufptr;
+		// turn on acquisition LED
+		PORTB|=B00100000;
+		// wait for the ongoing conversion and discard its result
+		// as it might be below trigger level
+		while (!(ADCSRA&(1<<ADIF)));
+		ADCSRA|=1<<ADIF;
+		// start acquisition
+		bufptr=buf[ch];
+		for (n=0; n<N; ++n) {
+			// wait for the conversion result
+			while (!(ADCSRA&(1<<ADIF)));
+			// save conversion result
+			*bufptr++=ADCH;
+			// turn off ADIF flag
+			ADCSRA|=1<<ADIF;
+		}
+		// try next channel
+		++ch;
+		// any channels left?
+		if (ch<cs.chs) {
+			// switch channel with care (Datasheet chap. 28.5)
+			// first, turn off ADC auto-triggering
+			cbi(ADCSRA,ADATE);
+			// wait for the ongoing conversion to complete
+			while (!(ADCSRA&(1<<ADIF)));
+			ADCSRA|=1<<ADIF;
+			// select next channel
+			ADMUX=(ADMUX&B11110000)+(ch&B00001111);
+			// enable auto-triggering again
+			sbi(ADCSRA,ADATE);
+			// and start first conversion
+			sbi(ADCSRA,ADSC);
+			// clear AC interrupt flag
+			// as it might be raised while this ISR is running,
+			// (we need to keep the phases synchronized)
+			ACSR|=1<<ACI;
+		} else {
+			// done with the last channel
+			// disable analog comparator interrupt
+			cbi(ACSR,ACIE);
+			// turn off acquisition LED
+			PORTB&=B11011111;
+			// raise ready flag
+			rdy=1;
+		}
+	}
 }
 
 // ADC ISR
@@ -122,6 +174,12 @@ init_mode (struct ctl *cs) {
 		TCCR1A=0;
 		TCCR1B=0;
 		TCCR1C=0;
+	} else {
+		// real-time sampling
+		cs->trig=1; // normal triggering
+		cs->chs=1; // one channel
+		cs->slope=1; // trigger on rising edge
+		cs->prescale=2; // fastest sampling rate
 	}
 }
 
