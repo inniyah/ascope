@@ -259,6 +259,8 @@ loop () {
 			struct ctl newcs;
 			// stop current sweep by disabling AC interrupt
 			cbi(ACSR,ACIE);
+			// stop timer
+			TCCR1B&=B11111000;
 			// read and parse the new control word
 			c=Serial.read();
 			parsecw(c,&newcs);
