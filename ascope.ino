@@ -193,7 +193,7 @@ setup () {
 	init_mode(&cs);
 }
 
-// start steps common to all sampling modes
+// sweep start-up common to all sampling modes
 void
 start_common (void) {
 	// clear ready flag
@@ -210,7 +210,7 @@ start_common (void) {
 	ADMUX&=B11110000;
 }
 
-// start-up steps specific to the selected sampling mode
+// sweep start-up specific to the selected sampling mode
 void
 start_mode (struct ctl cs) {
 	if (cs.samp==1) {
@@ -251,11 +251,16 @@ loop () {
 	do {
 		// read the new control word, if available
 		if (Serial.available()) {
+			struct ctl newcs;
 			// stop current sweep by disabling AC interrupt
 			cbi(ACSR,ACIE);
 			// read and parse the new control word
 			c=Serial.read();
-			parsecw(c,&cs);
+			parsecw(c,&newcs);
+			// change mode, if necessary
+			if (newcs.samp!=cs.samp)
+				init_mode(&newcs);
+			cs=newcs;
 			// clear ready flag and start new sweep
 			rdy=0;
 			break;
