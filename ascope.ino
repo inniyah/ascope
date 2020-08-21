@@ -171,8 +171,7 @@ loop () {
 			c=buf[ch][n];
 			// we write 1 instead of 0
 			// to avoid confusion with the sync marker
-			if (c==0)
-				c=1;
+			if (c==0) c=1;
 	    		Serial.write(c);
 		}
 	// wait for the transmission to complete

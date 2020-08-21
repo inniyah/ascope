@@ -348,10 +348,8 @@ main (void) {
 					// set number of channels
 					str[1]=0;
 					cs.chs=atoi(str);
-					if (cs.chs<1)
-						cs.chs=1;
-					if (cs.chs>MAXCHS)
-						cs.chs=MAXCHS;
+					if (cs.chs<1) cs.chs=1;
+					if (cs.chs>MAXCHS) cs.chs=MAXCHS;
 					// request sending of the new CW
 					sendcw=1;
 				}
