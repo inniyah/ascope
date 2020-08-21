@@ -1,5 +1,5 @@
 // Arduino oscilloscope
-// Copyright (c) 2019 Alexander Mukhin
+// Copyright (c) 2020 Alexander Mukhin
 // MIT License
 
 // global variables
