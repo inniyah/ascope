@@ -4,7 +4,7 @@
 
 // global variables
 unsigned char buf[MAXCHS][N]; // data buffer
-struct ctl cs={1,0,1,1,1}; // control structure
+struct ctl cs; // control structure
 
 // volatile variables
 volatile int n; // current sample number
@@ -69,27 +69,19 @@ ISR(ADC_vect,ISR_NOBLOCK) {
 	ACSR|=B00011000;
 }
 
+// initialization actions common to all sampling modes
 void
-setup () {
+init_common (void) {
 	// init ADC
 	// select AVcc as voltage reference
 	cbi(ADMUX,REFS1);
 	sbi(ADMUX,REFS0);
 	// left-adjust output
 	sbi(ADMUX,ADLAR);
-	// set ADC clock prescale value
-	ADCSRA=(ADCSRA&B11111000)+2;
 	// disable digital input buffer on all ADC pins (ADC0-ADC7)
 	DIDR0=B11111111;
-	// set auto-trigger on Timer/Counter1 Compare Match B
-	sbi(ADCSRB,ADTS2);
-	sbi(ADCSRB,ADTS0);
 	// enable auto trigger mode
 	sbi(ADCSRA,ADATE);
-	// enable ADC interrupt
-	sbi(ADCSRA,ADIE);
-	// enable ADC
-	sbi(ADCSRA,ADEN);
 	// init AC
 	// this trigger mode selection bit is always set
 	sbi(ACSR,ACIS1);
@@ -99,17 +91,48 @@ setup () {
 	// stop Timer/Counter0, since we're not using it,
 	// and don't want its ISR to delay our AC ISR
 	TCCR0B&=B11111000;
-	// init Timer/Counter1
-	// reset control registers to the default values
-	TCCR1A=0;
-	TCCR1B=0;
-	TCCR1C=0;
 	// init serial
 	Serial.begin(9600);
 	// init LED
 	// we use LED 13 as an acquisition indicator
 	pinMode(13,OUTPUT);
 	PORTB&=B11011111;
+}
+
+// initialization actions specific to the selected sampling mode
+void
+init_mode (struct ctl *cs) {
+	if (cs->samp==1) {
+		// equivalent-time sampling
+		// set initial control structure fields
+		cs->chs=1; // one channel
+		cs->slope=1; // trigger on rising edge
+		cs->prescale=1; // fastest sampling rate
+		// set ADC clock prescale value
+		ADCSRA=(ADCSRA&B11111000)+2;
+		// set auto-trigger on Timer/Counter1 Compare Match B
+		sbi(ADCSRB,ADTS2);
+		sbi(ADCSRB,ADTS0);
+		// enable ADC interrupt
+		sbi(ADCSRA,ADIE);
+		// enable ADC
+		sbi(ADCSRA,ADEN);
+		// init Timer/Counter1
+		// reset control registers to the default values
+		TCCR1A=0;
+		TCCR1B=0;
+		TCCR1C=0;
+	}
+}
+
+void
+setup () {
+	// common init
+	init_common();
+	// start in ET mode
+	cs.samp=1;
+	// mode-specific init
+	init_mode(&cs);
 #if 0
 // enable calibration PWM output
 // clear TC2 control registers
