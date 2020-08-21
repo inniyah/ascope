@@ -180,6 +180,11 @@ init_mode (struct ctl *cs) {
 		cs->chs=1; // one channel
 		cs->slope=1; // trigger on rising edge
 		cs->prescale=2; // fastest sampling rate
+		// disable auto-trigger on Timer/Counter1 Compare Match B
+		cbi(ADCSRB,ADTS2);
+		cbi(ADCSRB,ADTS0);
+		// disable ADC interrupt
+		cbi(ADCSRA,ADIE);
 	}
 }
 
@@ -218,7 +223,7 @@ start_mode (struct ctl cs) {
 		// set initial position and delay
 		n=0;
 		OCR1B=1;
-		// enable analog comparator interrupt
+		// enable AC interrupt
 		sbi(ACSR,ACIE);
 	} else {
 		// real-time sampling
