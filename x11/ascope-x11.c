@@ -481,13 +481,14 @@ main (void) {
 						// to ignore serial events
 						pfds[0].fd=-1;
 						// change window name
-						XStoreName(dpy,win,\
-						"ascope [frozen]");
+						XStoreName(dpy,win,"ascope [frozen]");
 					}
 				}
-				if (ks==XK_s) {
+				if (sync && cs.samp==0 && ks==XK_s) {
 					// enter single sweep mode
 					mode|=O_SNGL;
+					// change window name
+					XStoreName(dpy,win,"ascope [single-sweep]");
 				}
 				if (rdy && ks==XK_d) {
 					// dump raw buffer to stderr
