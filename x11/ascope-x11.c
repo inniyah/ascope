@@ -417,7 +417,7 @@ main (void) {
 						}
 					}
 				}
-				if (sync && mode&O_RUN && ks==XK_a) {
+				if (sync && cs.samp==0 && mode&O_RUN && ks==XK_a) {
 					// set auto-trigger mode
 					cs.trig=0;
 					sendcw=1;
