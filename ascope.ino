@@ -147,7 +147,7 @@ set_mode (struct ctl *cs) {
 		TCCR1C=0;
 	} else {
 		// real-time sampling
-		cs->trig=1; // normal triggering
+		cs->trig=0; // auto triggering
 		cs->chs=1; // one channel
 		cs->slope=1; // trigger on rising edge
 		cs->prescale=2; // fastest sampling rate
@@ -186,8 +186,8 @@ setup () {
 	// we use LED 13 as an acquisition indicator
 	pinMode(13,OUTPUT);
 	PORTB&=B11011111;
-	// start in ET mode
-	cs.samp=1;
+	// start in RT mode
+	cs.samp=0;
 	set_mode(&cs);
 }
 
