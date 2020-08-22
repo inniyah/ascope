@@ -172,7 +172,8 @@ main (void) {
 	struct pollfd pfds[2]; // poll structures
 	enum {O_LIN=0x1,O_RUN=0x2,O_SNGL=0x4} mode=3; // mode of operation
 	char str[256]; // string buffer (for status line text and keyboard input)
-	int rdy=0; // ready flag, means oscillogram is received and displayed
+	int sync=0; // sync flag, means CW is received
+	int rdy=0; // data ready flag, means oscillogram is received
 	int sendcw; // update and send new CW flag
 	// X stuff
 	Display *dpy;
@@ -267,32 +268,43 @@ main (void) {
 				// read and parse device control word
 				read(fd,&cw,1);
 				parsecw(cw,&cs);
+				// read data ready flag
+				read(fd,&c,1);
+				// set flags
+				sync=1;
+				rdy=(c==1)?1:0;
 				// read data buffers
-				for (ch=0; ch<cs.chs; ++ch)
-					for (n=0; n<N; ++n) {
-						read(fd,&c,1);
-						rbuf[ch][n]=c;
-						// convert sample to voltage
-						vbuf[ch][n]=s2v(c);
-					}
-				// do interpolation (zoom)
-				for (ch=0; ch<cs.chs; ++ch)
-					if (zt>1 && mode&O_LIN)
-						// linear interpolation
-						interp_lin(zt,vbuf[ch],zbuf[ch]);
-					else if (zt>1)
-						// sinc interpolation
-						interp_sinc(zt,sinctbl[p], \
-						vbuf[ch],zbuf[ch]);
-					else
-						// copy
-						memcpy(zbuf[ch],vbuf[ch], \
-						N*sizeof(float));
+				if (rdy) {
+					for (ch=0; ch<cs.chs; ++ch)
+						for (n=0; n<N; ++n) {
+							read(fd,&c,1);
+							rbuf[ch][n]=c;
+							// convert sample to voltage
+							vbuf[ch][n]=s2v(c);
+						}
+					// do interpolation (zoom)
+					for (ch=0; ch<cs.chs; ++ch)
+						if (zt>1 && mode&O_LIN)
+							// linear interpolation
+							interp_lin(zt,vbuf[ch],zbuf[ch]);
+						else if (zt>1)
+							// sinc interpolation
+							interp_sinc(zt,sinctbl[p], \
+							vbuf[ch],zbuf[ch]);
+						else
+							// copy
+							memcpy(zbuf[ch],vbuf[ch], \
+							N*sizeof(float));
+				}
 				// clear pixmap
 				XSetForeground(dpy,gc,0x000000);
 				XFillRectangle(dpy,pm,gc,0,0,pw,ph);
-				// draw oscillogram
-				makeosc(dpy,pm,gc,zbuf,cs.chs,zt,zv);
+				if (rdy)
+					// draw oscillogram
+					makeosc(dpy,pm,gc,zbuf,cs.chs,zt,zv);
+				else
+					// or empty grid
+					makeosc(dpy,pm,gc,NULL,cs.chs,zt,zv);
 				// draw status line
 				if (zt==1 && zv==1)
 					snprintf(str,256,
@@ -357,8 +369,6 @@ main (void) {
 					// quit single sweep mode as well
 					mode&=~O_SNGL;
 				}
-				// raise ready flag
-				rdy=1;
 			}
 		}
 		// process X events, if any
@@ -377,12 +387,12 @@ main (void) {
 					// quit
 					return 0;
 				}
-				if (rdy && mode&O_RUN && ks==XK_m) {
+				if (sync && mode&O_RUN && ks==XK_m) {
 					// toggle sampling mode
 					cs.samp=(cs.samp==1)?0:1;
 					sendcw=1;
 				}
-				if (rdy && mode&O_RUN && isdigit(str[0])) {
+				if (sync && mode&O_RUN && isdigit(str[0])) {
 					// set number of channels
 					str[1]=0;
 					cs.chs=atoi(str);
@@ -390,7 +400,7 @@ main (void) {
 					if (cs.chs>MAXCHS) cs.chs=MAXCHS;
 					sendcw=1;
 				}
-				if (rdy && mode&O_RUN && ks==XK_plus) {
+				if (sync && mode&O_RUN && ks==XK_plus) {
 					// increase sampling rate
 					if (cs.samp==1) {
 						// equivalent-time
@@ -406,7 +416,7 @@ main (void) {
 						}
 					}
 				}
-				if (rdy && mode&O_RUN && ks==XK_minus) {
+				if (sync && mode&O_RUN && ks==XK_minus) {
 					// decrease sampling rate
 					if (cs.samp==1) {
 						// equivalent-time
@@ -427,40 +437,40 @@ main (void) {
 					cs.trig=cs.trig?0:1;
 					sendcw=1;
 				}
-				if (rdy && mode&O_RUN && ks==XK_slash) {
+				if (sync && mode&O_RUN && ks==XK_slash) {
 					// trigger on rising edge
 					cs.slope=1;
 					sendcw=1;
 				}
-				if (rdy && mode&O_RUN && ks==XK_backslash) {
+				if (sync && mode&O_RUN && ks==XK_backslash) {
 					// trigger on falling edge
 					cs.slope=0;
 					sendcw=1;
 				}
-				if (rdy && mode&O_RUN && ks==XK_Right) {
+				if (sync && mode&O_RUN && ks==XK_Right) {
 					// increase time zoom
 					if (p<MAXP) {
 						++p;
 						zt=1<<p;
 					}
 				}
-				if (rdy && mode&O_RUN && ks==XK_Left) {
+				if (sync && mode&O_RUN && ks==XK_Left) {
 					// decrease time zoom
 					if (p>0) {
 						--p;
 						zt=1<<p;
 					}
 				}
-				if (rdy && mode&O_RUN && ks==XK_Up) {
+				if (sync && mode&O_RUN && ks==XK_Up) {
 					// increase voltage zoom
 					++zv;
 				}
-				if (rdy && mode&O_RUN && ks==XK_Down) {
+				if (sync && mode&O_RUN && ks==XK_Down) {
 					// decrease voltage zoom
 					if (zv>1)
 						--zv;
 				}
-				if (rdy && mode&O_RUN && p && ks==XK_i) {
+				if (sync && mode&O_RUN && p && ks==XK_i) {
 					// toggle interpolation mode
 					mode^=O_LIN;
 				}
@@ -551,7 +561,7 @@ main (void) {
 					tcflush(fd,TCOFLUSH);
 				}
 			}
-			if (rdy && evt.type==ButtonPress) {
+			if (sync && evt.type==ButtonPress) {
 				// show time and voltage below mouse pointer
 				float x,y;
 				x=evt.xbutton.x-B;
