@@ -173,7 +173,7 @@ main (void) {
 	char str[256]; // string buffer (for status line text and keyboard input)
 	int sync=0; // sync flag, means CW is received
 	int rdy=0; // data ready flag, means oscillogram is received
-	int sendcw; // update and send new CW flag
+	int sendcw=0; // update and send new CW flag
 	// X stuff
 	Display *dpy;
 	Window win;
@@ -366,8 +366,6 @@ main (void) {
 			}
 			if (evt.type==KeyPress) {
 				XLookupString(&evt.xkey,str,1,&ks,NULL);
-				// clear update CW flag
-				sendcw=0;
 				if (ks==XK_q) {
 					// quit
 					return 0;
@@ -547,6 +545,8 @@ main (void) {
 					// send it to the device
 					write(fd,&cw,1);
 					tcflush(fd,TCOFLUSH);
+					// clear flag
+					sendcw=0;
 				}
 			}
 			if (sync && evt.type==ButtonPress) {
