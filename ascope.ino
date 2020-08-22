@@ -259,9 +259,10 @@ loop () {
 		}
 	} while (!rdy);
 	// write out data
+	Serial.write(0); // sync marker
+	Serial.write(makecw(cs)); // current control word
 	if (rdy) {
-		Serial.write(0); // sync marker
-		Serial.write(makecw(cs)); // current control word
+		Serial.write(1); // data ready flag
 		for (ch=0; ch<cs.chs; ++ch)
 			for (n=0; n<N; ++n) {
 				c=buf[ch][n];
@@ -270,7 +271,8 @@ loop () {
 				if (c==0) c=1;
 				Serial.write(c);
 			}
-		// wait for the transmission to complete
-		Serial.flush();
-	}
+	} else
+		Serial.write(255); // data not ready flag
+	// wait for the transmission to complete
+	Serial.flush();
 }
