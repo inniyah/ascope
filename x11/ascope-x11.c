@@ -418,18 +418,20 @@ main (void) {
 					}
 				}
 				if (sync && mode&O_RUN && ks==XK_a) {
-					// toggle auto-trigger mode
-					cs.trig=cs.trig?0:1;
+					// set auto-trigger mode
+					cs.trig=0;
 					sendcw=1;
 				}
 				if (sync && mode&O_RUN && ks==XK_slash) {
 					// trigger on rising edge
 					cs.slope=1;
+					cs.trig=1;
 					sendcw=1;
 				}
 				if (sync && mode&O_RUN && ks==XK_backslash) {
 					// trigger on falling edge
 					cs.slope=0;
+					cs.trig=1;
 					sendcw=1;
 				}
 				if (sync && mode&O_RUN && ks==XK_Right) {
