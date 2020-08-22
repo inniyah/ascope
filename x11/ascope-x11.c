@@ -388,7 +388,6 @@ main (void) {
 					cs.chs=atoi(str);
 					if (cs.chs<1) cs.chs=1;
 					if (cs.chs>MAXCHS) cs.chs=MAXCHS;
-					// request sending of the new CW
 					sendcw=1;
 				}
 				if (rdy && mode&O_RUN && ks==XK_plus) {
@@ -397,14 +396,12 @@ main (void) {
 						// equivalent-time
 						if (cs.prescale>1) {
 							--cs.prescale;
-							// send new CW
 							sendcw=1;
 						}
 					} else {
 						// real-time
 						if (cs.prescale>2) {
 							--cs.prescale;
-							// send new CW
 							sendcw=1;
 						}
 					}
@@ -415,14 +412,12 @@ main (void) {
 						// equivalent-time
 						if (cs.prescale<5) {
 							++cs.prescale;
-							// send new CW
 							sendcw=1;
 						}
 					} else {
 						// real-time
 						if (cs.prescale<7) {
 							++cs.prescale;
-							// send new CW
 							sendcw=1;
 						}
 					}
@@ -430,19 +425,16 @@ main (void) {
 				if (mode&O_RUN && ks==XK_a) {
 					// toggle auto-trigger mode
 					cs.trig=cs.trig?0:1;
-					// request sending of the new CW
 					sendcw=1;
 				}
 				if (rdy && mode&O_RUN && ks==XK_slash) {
 					// trigger on rising edge
 					cs.slope=1;
-					// request sending of the new CW
 					sendcw=1;
 				}
 				if (rdy && mode&O_RUN && ks==XK_backslash) {
 					// trigger on falling edge
 					cs.slope=0;
-					// request sending of the new CW
 					sendcw=1;
 				}
 				if (rdy && mode&O_RUN && ks==XK_Right) {
