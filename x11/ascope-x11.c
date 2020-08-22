@@ -417,7 +417,7 @@ main (void) {
 						}
 					}
 				}
-				if (mode&O_RUN && ks==XK_a) {
+				if (sync && mode&O_RUN && ks==XK_a) {
 					// toggle auto-trigger mode
 					cs.trig=cs.trig?0:1;
 					sendcw=1;
