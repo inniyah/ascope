@@ -77,7 +77,7 @@ ISR(ANALOG_COMP_vect) {
 	}
 }
 
-// ADC ISR
+// ADC ISR (used in ET mode only)
 // we execute it with interrupts always enabled (ISR_NOBLOCK),
 // so that the next AC interrupt will be processed
 // as soon as it happens, and restoring flags in this ISR's epilogue
@@ -121,39 +121,9 @@ ISR(ADC_vect,ISR_NOBLOCK) {
 	ACSR|=B00011000;
 }
 
-// initialization actions common to all sampling modes
+// set selected sampling mode
 void
-init_common (void) {
-	// init ADC
-	// select AVcc as voltage reference
-	cbi(ADMUX,REFS1);
-	sbi(ADMUX,REFS0);
-	// left-adjust output
-	sbi(ADMUX,ADLAR);
-	// disable digital input buffer on all ADC pins (ADC0-ADC7)
-	DIDR0=B11111111;
-	// enable auto trigger mode
-	sbi(ADCSRA,ADATE);
-	// init AC
-	// this trigger mode selection bit is always set
-	sbi(ACSR,ACIS1);
-	// disable digital input buffer on AIN0 and AIN1
-	sbi(DIDR1,AIN1D);
-	sbi(DIDR1,AIN0D);
-	// stop Timer/Counter0, since we're not using it,
-	// and don't want its ISR to delay our AC ISR
-	TCCR0B&=B11111000;
-	// init serial
-	Serial.begin(9600);
-	// init LED
-	// we use LED 13 as an acquisition indicator
-	pinMode(13,OUTPUT);
-	PORTB&=B11011111;
-}
-
-// initialization actions specific to the selected sampling mode
-void
-init_mode (struct ctl *cs) {
+set_mode (struct ctl *cs) {
 	if (cs->samp==1) {
 		// equivalent-time sampling
 		// set initial control structure fields
@@ -191,29 +161,34 @@ init_mode (struct ctl *cs) {
 
 void
 setup () {
-	// common init
-	init_common();
+	// init ADC
+	// select AVcc as voltage reference
+	cbi(ADMUX,REFS1);
+	sbi(ADMUX,REFS0);
+	// left-adjust output
+	sbi(ADMUX,ADLAR);
+	// disable digital input buffer on all ADC pins (ADC0-ADC7)
+	DIDR0=B11111111;
+	// enable auto trigger mode
+	sbi(ADCSRA,ADATE);
+	// init AC
+	// this trigger mode selection bit is always set
+	sbi(ACSR,ACIS1);
+	// disable digital input buffer on AIN0 and AIN1
+	sbi(DIDR1,AIN1D);
+	sbi(DIDR1,AIN0D);
+	// stop Timer/Counter0, since we're not using it,
+	// and don't want its ISR to delay our AC ISR
+	TCCR0B&=B11111000;
+	// init serial
+	Serial.begin(9600);
+	// init LED
+	// we use LED 13 as an acquisition indicator
+	pinMode(13,OUTPUT);
+	PORTB&=B11011111;
 	// start in ET mode
 	cs.samp=1;
-	// mode-specific init
-	init_mode(&cs);
-}
-
-// sweep start-up common to all sampling modes
-void
-start_common (void) {
-	// clear ready flag
-	rdy=0;
-	// set trigger slope
-	if (cs.slope)
-		// trigger on rising edge
-		sbi(ACSR,ACIS0);
-	else
-		// trigger on falling edge
-		cbi(ACSR,ACIS0);
-	// select channel 0
-	ch=0;
-	ADMUX&=B11110000;
+	set_mode(&cs);
 }
 
 // sweep start-up specific to the selected sampling mode
@@ -249,25 +224,34 @@ start_mode (struct ctl cs) {
 void
 loop () {
 	unsigned char c;
-	// common start
-	start_common();
-	// mode-specific start
+	// clear ready flag
+	rdy=0;
+	// set trigger slope
+	if (cs.slope)
+		// trigger on rising edge
+		sbi(ACSR,ACIS0);
+	else
+		// trigger on falling edge
+		cbi(ACSR,ACIS0);
+	// select channel 0
+	ch=0;
+	ADMUX&=B11110000;
+	// mode-specific startup actions
 	start_mode(cs);
 	// wait for the data to be ready
 	do {
 		// read the new control word, if available
 		if (Serial.available()) {
 			struct ctl newcs;
-			// stop current sweep by disabling AC interrupt
-			cbi(ACSR,ACIE);
-			// stop timer
-			TCCR1B&=B11111000;
+			// stop current sweep
+			cbi(ACSR,ACIE); // disable AC interrupt
+			TCCR1B&=B11111000; // stop timer
 			// read and parse the new control word
 			c=Serial.read();
 			parsecw(c,&newcs);
 			// change mode, if necessary
 			if (newcs.samp!=cs.samp)
-				init_mode(&newcs);
+				set_mode(&newcs);
 			cs=newcs;
 			// clear ready flag and start new sweep
 			rdy=0;
