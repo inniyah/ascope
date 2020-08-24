@@ -173,7 +173,8 @@ main (void) {
 	char str[256]; // string buffer (for status line text and keyboard input)
 	int sync=0; // sync flag, means CW is received
 	int rdy=0; // data ready flag, means oscillogram is received
-	int sendcw=0; // update and send new CW flag
+	int sendcw=0; // update and send new CW request
+	int redraw=0; // redraw oscillogram request
 	// X stuff
 	Display *dpy;
 	Window win;
@@ -281,66 +282,6 @@ main (void) {
 							memcpy(zbuf[ch],vbuf[ch], \
 							N*sizeof(float));
 				}
-				// clear pixmap
-				XSetForeground(dpy,gc,0x000000);
-				XFillRectangle(dpy,pm,gc,0,0,pw,ph);
-				if (rdy)
-					// draw oscillogram
-					makeosc(dpy,pm,gc,zbuf,cs.chs,zt,zv);
-				else
-					// or empty grid
-					makeosc(dpy,pm,gc,NULL,cs.chs,zt,zv);
-				// draw status line
-				if (zt==1 && zv==1)
-					snprintf(str,256,
-					"%.1f V/div, "
-					"%.1f us/div %cT, "
-					"%d ch%s, "
-					"%c",
-					VDIV,
-					SDIV*dt(cs),
-					cs.samp?'E':'R',
-					cs.chs,cs.chs>1?"s":"",
-					cs.trig?cs.slope?'/':'\\':'A');
-				else if (zt>1 && zv==1)
-					snprintf(str,256,
-					"%.1f V/div, "
-					"%.1f us/div (%dx %s) %cT, "
-					"%d ch%s, "
-					"%c",
-					VDIV,
-					SDIV*dt(cs),zt,(mode&O_LIN)?"linear":"sinc",
-					cs.samp?'E':'R',
-					cs.chs,cs.chs>1?"s":"",
-					cs.trig?cs.slope?'/':'\\':'A');
-				else if (zt==1 && zv>1)
-					snprintf(str,256,
-					"%.1f V/div (%dx), "
-					"%.1f us/div %cT, "
-					"%d ch%s, "
-					"%c",
-					VDIV,zv,
-					SDIV*dt(cs),
-					cs.samp?'E':'R',
-					cs.chs,cs.chs>1?"s":"",
-					cs.trig?cs.slope?'/':'\\':'A');
-				else
-					snprintf(str,256,
-					"%.1f V/div (%dx), "
-					"%.1f us/div (%dx %s) %cT, "
-					"%d ch%s, "
-					"%c",
-					VDIV,zv,
-					SDIV*dt(cs),zt,(mode&O_LIN)?"linear":"sinc",
-					cs.samp?'E':'R',
-					cs.chs,cs.chs>1?"s":"",
-					cs.trig?cs.slope?'/':'\\':'A');
-				XSetForeground(dpy,gc,0xffffff);
-				XDrawString(dpy,pm,gc,0,ph-1,str,strlen(str));
-				// send itself an exposure event
-				// to display the oscillogram
-				evt.type=Expose;
-				XSendEvent(dpy,win,False,0,&evt);
 				// freeze if we're in single sweep mode
 				if (mode&O_SNGL) {
 					mode&=~O_RUN;
@@ -354,6 +295,8 @@ main (void) {
 					// quit single sweep mode as well
 					mode&=~O_SNGL;
 				}
+				// request redraw
+				redraw=1;
 			}
 		}
 		// process X events, if any
@@ -438,6 +381,7 @@ main (void) {
 						++p;
 						zt=1<<p;
 					}
+					redraw=1;
 				}
 				if (sync && mode&O_RUN && ks==XK_Left) {
 					// decrease time zoom
@@ -445,6 +389,7 @@ main (void) {
 						--p;
 						zt=1<<p;
 					}
+					redraw=1;
 				}
 				if (sync && mode&O_RUN && ks==XK_Up) {
 					// increase voltage zoom
@@ -561,6 +506,72 @@ main (void) {
 					printf("%.1f us, %.2f V\n",t,v);
 				}
 			}
+		}
+		// redraw
+		if (redraw) {
+			// clear pixmap
+			XSetForeground(dpy,gc,0x000000);
+			XFillRectangle(dpy,pm,gc,0,0,pw,ph);
+			if (rdy)
+				// draw oscillogram
+				makeosc(dpy,pm,gc,zbuf,cs.chs,zt,zv);
+			else
+				// or empty grid
+				makeosc(dpy,pm,gc,NULL,cs.chs,zt,zv);
+			// draw status line
+			if (zt==1 && zv==1)
+				snprintf(str,256,
+				"%.1f V/div, "
+				"%.1f us/div %cT, "
+				"%d ch%s, "
+				"%c",
+				VDIV,
+				SDIV*dt(cs),
+				cs.samp?'E':'R',
+				cs.chs,cs.chs>1?"s":"",
+				cs.trig?cs.slope?'/':'\\':'A');
+			else if (zt>1 && zv==1)
+				snprintf(str,256,
+				"%.1f V/div, "
+				"%.1f us/div (%dx %s) %cT, "
+				"%d ch%s, "
+				"%c",
+				VDIV,
+				SDIV*dt(cs),zt,(mode&O_LIN)?"linear":"sinc",
+				cs.samp?'E':'R',
+				cs.chs,cs.chs>1?"s":"",
+				cs.trig?cs.slope?'/':'\\':'A');
+			else if (zt==1 && zv>1)
+				snprintf(str,256,
+				"%.1f V/div (%dx), "
+				"%.1f us/div %cT, "
+				"%d ch%s, "
+				"%c",
+				VDIV,zv,
+				SDIV*dt(cs),
+				cs.samp?'E':'R',
+				cs.chs,cs.chs>1?"s":"",
+				cs.trig?cs.slope?'/':'\\':'A');
+			else
+				snprintf(str,256,
+				"%.1f V/div (%dx), "
+				"%.1f us/div (%dx %s) %cT, "
+				"%d ch%s, "
+				"%c",
+				VDIV,zv,
+				SDIV*dt(cs),zt,(mode&O_LIN)?"linear":"sinc",
+				cs.samp?'E':'R',
+				cs.chs,cs.chs>1?"s":"",
+				cs.trig?cs.slope?'/':'\\':'A');
+			XSetForeground(dpy,gc,0xffffff);
+			XDrawString(dpy,pm,gc,0,ph-1,str,strlen(str));
+			// send itself an exposure event
+			// to display the oscillogram
+			evt.type=Expose;
+			XSendEvent(dpy,win,False,0,&evt);
+			XFlush(dpy);
+			// clear flag
+			redraw=0;
 		}
 	}
 }
