@@ -126,10 +126,8 @@ void
 set_mode (struct ctl *cs) {
 	if (cs->samp==1) {
 		// equivalent-time sampling
-		// set initial control structure fields
+		// reset some control structure fields
 		cs->trig=1; // normal triggering
-		cs->chs=1; // one channel
-		cs->slope=1; // trigger on rising edge
 		cs->prescale=1; // fastest sampling rate
 		// set ADC clock prescale value
 		ADCSRA=(ADCSRA&B11111000)+2;
@@ -147,9 +145,7 @@ set_mode (struct ctl *cs) {
 		TCCR1C=0;
 	} else {
 		// real-time sampling
-		cs->trig=0; // auto triggering
-		cs->chs=1; // one channel
-		cs->slope=1; // trigger on rising edge
+		// reset some control structure fields
 		cs->prescale=2; // fastest sampling rate
 		// disable auto-trigger on Timer/Counter1 Compare Match B
 		cbi(ADCSRB,ADTS2);
@@ -186,8 +182,11 @@ setup () {
 	// we use LED 13 as an acquisition indicator
 	pinMode(13,OUTPUT);
 	PORTB&=B11011111;
-	// start in RT mode
-	cs.samp=0;
+	// set initial mode
+	cs.samp=0; // RT sampling
+	cs.trig=0; // auto-trigger
+	cs.chs=1; // one channel
+	cs.slope=1; // default
 	set_mode(&cs);
 }
 
