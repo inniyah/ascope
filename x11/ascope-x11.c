@@ -59,19 +59,18 @@ dt (struct ctl cs) {
 
 // draw oscillogram on a pixmap
 void
-makeosc (Display *dpy, Pixmap pm, GC gc, float buf[MAXCHS][N], int chs, int zt, int zv) {
+makeosc (Display *dpy, Pixmap pm, GC gc, float buf[MAXCHS][N], int chs, int zt) {
 	int ch; // current channel
 	int i; // counter
 	int x,xprev,y,yprev; // coordinates
-	float svmin=Vmin/zv,svmax=Vmax/zv; // scaled voltage display limits
 	// draw grid lines
 	XSetForeground(dpy,gc,0x404040);
-	for (i=1; i<=floor(svmax/VDIV); ++i) {
-		y=(H-1)*(svmax-i*VDIV)/(svmax-svmin);
+	for (i=1; i<=floor(Vmax/VDIV); ++i) {
+		y=(H-1)*(Vmax-i*VDIV)/(Vmax-Vmin);
 		XDrawLine(dpy,pm,gc,0,y,W-1,y);
 	}
-	for (i=1; i<=floor(-svmin/VDIV); ++i) {
-		y=(H-1)*(svmax+i*VDIV)/(svmax-svmin);
+	for (i=1; i<=floor(-Vmin/VDIV); ++i) {
+		y=(H-1)*(Vmax+i*VDIV)/(Vmax-Vmin);
 		XDrawLine(dpy,pm,gc,0,y,W-1,y);
 	}
 	for (i=0; i<=N/(zt*SDIV); ++i) {
@@ -80,7 +79,7 @@ makeosc (Display *dpy, Pixmap pm, GC gc, float buf[MAXCHS][N], int chs, int zt, 
 	}	
 	// draw zero voltage axis
 	XSetForeground(dpy,gc,0x808080);
-	y=(H-1)*svmax/(svmax-svmin);
+	y=(H-1)*Vmax/(Vmax-Vmin);
 	XDrawLine(dpy,pm,gc,0,y,W-1,y);
 	if (!buf)
 		// return if no data available
@@ -91,7 +90,7 @@ makeosc (Display *dpy, Pixmap pm, GC gc, float buf[MAXCHS][N], int chs, int zt, 
 		XSetForeground(dpy,gc,clrs[ch]);
 		for (i=0; i<N; ++i) {
 			x=i*W/N;
-			y=(H-1)*(svmax-buf[ch][i])/(svmax-svmin);
+			y=(H-1)*(Vmax-buf[ch][i])/(Vmax-Vmin);
 			if (i)
 				XDrawLine(dpy,pm,gc,xprev,yprev,x,y);
 			else
@@ -164,7 +163,6 @@ main (void) {
 	int n; // sample index
 	float vbuf[MAXCHS][N]; // acquired data converted to voltage
 	int p=0,zt=1<<p; // time scale zoom power and factor (zt=2^p)
-	int zv=1; // voltage scale zoom factor
 	float zbuf[MAXCHS][N]; // interpolated (zoomed) data
 	float sinctbl[MAXP+1][N*N]; // precomputed sinc tables
 	int fd; // oscilloscope device file descriptor
@@ -400,15 +398,6 @@ main (void) {
 					}
 					redraw=1;
 				}
-				if (sync && mode&O_RUN && ks==XK_Up) {
-					// increase voltage zoom
-					++zv;
-				}
-				if (sync && mode&O_RUN && ks==XK_Down) {
-					// decrease voltage zoom
-					if (zv>1)
-						--zv;
-				}
 				if (sync && mode&O_RUN && p && ks==XK_i) {
 					// toggle interpolation mode
 					mode^=O_LIN;
@@ -511,7 +500,7 @@ main (void) {
 				if (x<W && y<H) {
 					float t,v;
 					t=(x/W)*N*dt(cs)/zt;
-					v=(Vmax-(Vmax-Vmin)*y/(H-1))/zv;
+					v=(Vmax-(Vmax-Vmin)*y/(H-1));
 					printf("%.1f us, %.2f V\n",t,v);
 				}
 			}
@@ -523,51 +512,29 @@ main (void) {
 			XFillRectangle(dpy,pm,gc,0,0,pw,ph);
 			if (rdy)
 				// draw oscillogram
-				makeosc(dpy,pm,gc,zbuf,cs.chs,zt,zv);
+				makeosc(dpy,pm,gc,zbuf,cs.chs,zt);
 			else
 				// or empty grid
-				makeosc(dpy,pm,gc,NULL,cs.chs,zt,zv);
+				makeosc(dpy,pm,gc,NULL,cs.chs,zt);
 			// draw status line
-			if (zt==1 && zv==1)
+			if (zt==1)
 				snprintf(str,256,
 				"%.1f V/div, "
 				"%.1f us/div %cT, "
 				"%d ch%s, "
 				"%c",
 				VDIV,
-				SDIV*dt(cs),
-				cs.samp?'E':'R',
-				cs.chs,cs.chs>1?"s":"",
-				cs.trig?cs.slope?'/':'\\':'A');
-			else if (zt>1 && zv==1)
-				snprintf(str,256,
-				"%.1f V/div, "
-				"%.1f us/div (%dx %s) %cT, "
-				"%d ch%s, "
-				"%c",
-				VDIV,
-				SDIV*dt(cs),zt,(mode&O_LIN)?"linear":"sinc",
-				cs.samp?'E':'R',
-				cs.chs,cs.chs>1?"s":"",
-				cs.trig?cs.slope?'/':'\\':'A');
-			else if (zt==1 && zv>1)
-				snprintf(str,256,
-				"%.1f V/div (%dx), "
-				"%.1f us/div %cT, "
-				"%d ch%s, "
-				"%c",
-				VDIV,zv,
 				SDIV*dt(cs),
 				cs.samp?'E':'R',
 				cs.chs,cs.chs>1?"s":"",
 				cs.trig?cs.slope?'/':'\\':'A');
 			else
 				snprintf(str,256,
-				"%.1f V/div (%dx), "
+				"%.1f V/div, "
 				"%.1f us/div (%dx %s) %cT, "
 				"%d ch%s, "
 				"%c",
-				VDIV,zv,
+				VDIV,
 				SDIV*dt(cs),zt,(mode&O_LIN)?"linear":"sinc",
 				cs.samp?'E':'R',
 				cs.chs,cs.chs>1?"s":"",
