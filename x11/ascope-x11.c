@@ -275,19 +275,6 @@ main (void) {
 							// convert sample to voltage
 							vbuf[ch][n]=s2v(c);
 						}
-					// do interpolation (zoom)
-					for (ch=0; ch<cs.chs; ++ch)
-						if (zt>1 && mode&O_LIN)
-							// linear interpolation
-							interp_lin(zt,vbuf[ch],zbuf[ch]);
-						else if (zt>1)
-							// sinc interpolation
-							interp_sinc(zt,sinctbl[p], \
-							vbuf[ch],zbuf[ch]);
-						else
-							// copy
-							memcpy(zbuf[ch],vbuf[ch], \
-							N*sizeof(float));
 				}
 				// freeze if we're in single sweep mode
 				if (mode&O_SNGL) {
@@ -510,11 +497,24 @@ main (void) {
 			// clear pixmap
 			XSetForeground(dpy,gc,0x000000);
 			XFillRectangle(dpy,pm,gc,0,0,pw,ph);
-			if (rdy)
+			if (rdy) {
+				// do interpolation (zoom)
+				for (ch=0; ch<cs.chs; ++ch)
+					if (zt>1 && mode&O_LIN)
+						// linear interpolation
+						interp_lin(zt,vbuf[ch],zbuf[ch]);
+					else if (zt>1)
+						// sinc interpolation
+						interp_sinc(zt,sinctbl[p], \
+						vbuf[ch],zbuf[ch]);
+					else
+						// copy
+						memcpy(zbuf[ch],vbuf[ch], \
+						N*sizeof(float));
 				// draw oscillogram
 				makeosc(dpy,pm,gc,zbuf,cs.chs,zt);
-			else
-				// or empty grid
+			} else
+				// draw empty grid
 				makeosc(dpy,pm,gc,NULL,cs.chs,zt);
 			// draw status line
 			if (zt==1)
