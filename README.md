@@ -9,9 +9,8 @@ An Arduino Uno oscilloscope.
 
 ## The principle of operation
 The oscilloscope takes its input from the analog pins A0, A1, etc. In
-the normal mode, acquisition is triggered when the voltage on the AIN0
-pin matches that on the AIN1 pin, either on the rising (default) or the
-falling edge. In the auto-trigger mode, acquisition starts immediately.
+the normal mode, acquisition is triggered when an AC interrupt occurs.
+In the auto-trigger mode, acquisition starts immediately.
 
 In the real-time sampling mode, the ADC is free-running. AC ISR polls
 the ADC for conversion results and fills the output buffers. Sampling
@@ -23,26 +22,23 @@ The conversion is triggered by the TC1 output compare match. ADC ISR
 reads the conversion result and schedules the next one. Sampling rate is
 switched by changing the TC1 clock division factor.
 
-## Control and data exchange protocol
-Settings from the control program and data from the oscilloscope are
-exchanged with a simple protocol described below.
-
-#### Control flow
-The oscilloscope takes its settings from a single-byte control word:
-
-![](docs/cw.svg)
-
-#### Data flow
-The oscilloscope returns data in the following format:
-
-![](docs/data.svg)
+## Indication
+The onboard LED is turned on while the acquisition is in progress.
 
 ## Limitations
 The analog bandwidth of the Arduino ADC input circuits is not much above
 100 kHz. Signals of higher frequency are considerably distorted.
 
-## Indication
-The onboard LED is turned on while the acquisition is in progress.
+## Control and data exchange protocol
+The oscilloscope takes its settings from a single-byte control word:
+
+![](docs/cw.svg)
+
+and returns data in the following order:
+
+![](docs/data.svg)
+
+See the source code for details.
 
 ## Control software
 We provide a simple control program for Unix-like operating systems with
@@ -65,7 +61,7 @@ key               | action
 `q`               | Quit
 any mouse button  | Show the time and voltage values below the pointer
 
-## Examples
+## Example
 A multivibrator running at 75 kHz (collector and base voltages):
 
 ![](docs/out.png)
