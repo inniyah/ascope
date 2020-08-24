@@ -14,19 +14,21 @@
 \hline
 7&6&5&4&3&2&1&0 \\
 \hline
-Unused &
-\multicolumn{3}{c|}{Number of channels} &
+Sampling mode &
+Trigger mode &
+\multicolumn{2}{c|}{Number of channels} &
 Slope &
-\multicolumn{3}{c|}{TC1 clock prescale} \\
+\multicolumn{3}{c|}{ADC or TC1 clock prescale} \\
 \hline
 \end{tabular}
 \newpage
 
 % Data stream
-\begin{tabular}{|c|c|c|c|c|}
+\begin{tabular}{|c|c|c|c|c|c|}
 \hline
 Sync marker &
 Control word &
+Data ready flag &
 Channel 1 data &
 ... &
 Channel {\it chs} data \\
