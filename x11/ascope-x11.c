@@ -15,6 +15,7 @@ const int clrs[MAXCHS]={0x00ff00,0xff0000}; // channel colors
 const int MAXP=8; // maximum time zoom power [may not exceed log2(N)]
 // device
 #define ODEV "/dev/ttyACM0" // oscilloscope device file
+const int POLLTIMO=5000; // poll timeout in milliseconds
 
 #include <stdio.h>
 #include <sys/types.h>
@@ -241,7 +242,15 @@ main (void) {
 	// event loop
 	while (1) {
 		// wait for events
-		poll(pfds,2,-1);
+		if (!poll(pfds,2,POLLTIMO)) {
+			// poll() timed out
+			if (sync && mode&O_RUN) {
+				// clear ready flag
+				rdy=0;
+				// request redraw
+				redraw=1;
+			}
+		}
 		// exit if device reported error
 		if (pfds[0].revents&POLLERR)
 			return 2;
