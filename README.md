@@ -2,25 +2,26 @@
 An Arduino Uno oscilloscope.
 
 ## Features
-* equivalent-time sampling rates 16 MSps, 2 MSps, 250 kSps, 62.5 kSps, and 15.625 kSps,
+* real-time sampling rates up to 300 kSps,
+* equivalent-time sampling rates up to 16 MSps,
 * 8-bit resolution,
 * multiple channels.
 
-There's also a [real-time sampling](../../tree/realtime) version.
-However, it offers much lower sampling rates.
+## The principle of operation
+The oscilloscope takes its input from the analog pins A0, A1, etc. In
+the normal mode, acquisition is triggered when the voltage on the AIN0
+pin matches that on the AIN1 pin, either on the rising (default) or the
+falling edge. In the auto-trigger mode, acquisition starts immediately.
 
-## Hardware setup
-The oscilloscope takes its input from the analog pins A0, A1, etc.
-Acquisition is triggered when the voltage on the AIN0 pin rises above (or
-falls below) that on the AIN1 pin.
+In the real-time sampling mode, the ADC is free-running. AC ISR polls
+the ADC for conversion results and fills the output buffers. Sampling
+rate is switched by changing the ADC clock division factor.
 
-## The principles of operation
-Acquisition is started when an AC interrupt occurs. Time interval between
-AC interrupt and ADC conversion is measured with the 16-bit
-Timer/Counter1. This is facilitated by running the ADC in auto-trigger
-mode, when the conversion is triggered by the Timer/Counter1 output
-compare match. Sampling rate is switched by changing the TC1 clock
-division factor.
+In the equivalent-time sampling mode, the time interval between an AC
+interrupt and ADC conversion is measured with the 16-bit Timer/Counter1.
+The conversion is triggered by the TC1 output compare match. ADC ISR
+reads the conversion result and schedules the next one. Sampling rate is
+switched by changing the TC1 clock division factor.
 
 ## Control and data exchange protocol
 Settings from the control program and data from the oscilloscope are
@@ -36,9 +37,6 @@ The oscilloscope returns data in the following format:
 
 ![](docs/data.svg)
 
-The details of the exchange protocol are documented thoroughly in the
-source.
-
 ## Limitations
 The analog bandwidth of the Arduino ADC input circuits is not much above
 100 kHz. Signals of higher frequency are considerably distorted.
@@ -46,50 +44,26 @@ The analog bandwidth of the Arduino ADC input circuits is not much above
 ## Indication
 The onboard LED is turned on while the acquisition is in progress.
 
-## The X11 control and viewer program
-We provide a reference implementation of a control program for Unix-like
-operating systems.
+## Control software
+We provide a simple control program for Unix-like operating systems with
+X11 graphics. It requires just plain `Xlib` and `libpng` and is
+controlled mostly from keyboard:
 
-#### Keyboard controls
-key            | action
----------------|-------
-`+`, `-`       | Increase or decrease sampling rate
-`/`, `\`       | Trigger on rising or falling edge
-`1`, `2`, etc. | Use 1, 2, or more (if compiled) channels
-`→`, `←`       | Increase or decrease time scale zoom
-`↑`, `↓`       | Increase or decrease voltage scale zoom
-`i`            | Toggle interpolation mode (linear or sinc)
-`<space>`      | Freeze or thaw
-`d`            | Dump the raw data to `stderr`
-`w`            | Write the oscillogram to `./out.png`
-`q`            | Quit
-
-Pressing a mouse button will show the time and voltage values under the
-pointer.
-
-#### Customization
-Since the Arduino ADC accepts input in the range 0-5 V only, one would
-probably use an external conversion circuit to fit the signal being
-studied to the range suitable for the ADC. Actual input voltage range is
-set with the `Vmin` and `Vmax` constants.
-
-Other adjustable settings are:
-* Number of samples in the buffer (must be the same as in the sketch),
-* Maximum number of channels (must be the same as in the sketch),
-* Oscillogram width and height,
-* Grid steps (Volts per division and Samples per division),
-* Device file name.
-
-#### Requirements
-The GUI requires plain `Xlib` and `libpng`.
-
-#### Compliance
-The GUI source complies with the C99 standard.
-
-## Calibration output
-The source code contains provisions for producing square waveforms in
-the wide range of frequencies (from 500 Hz to 500 kHz), which might be
-useful for testing and calibration.
+key               | action
+------------------|-------
+`1`, `2`, ...     | Use 1, 2, ... channels
+`/`, `\`          | Trigger on rising or falling edge
+`a`               | Set auto-trigger mode (RT sampling only)
+`+`, `-`          | Increase or decrease sampling rate
+`m`               | Toggle sampling mode (RT or ET)
+`→`, `←`          | Increase or decrease time scale zoom
+`i`               | Toggle interpolation mode (linear or sinc)
+`s`               | Turn on single sweep mode
+`<space>`         | Freeze or thaw
+`d`               | Dump the raw data to `stderr`
+`w`               | Write the oscillogram to `./out.png`
+`q`               | Quit
+any mouse button  | Show the time and voltage values below the pointer
 
 ## Examples
 A multivibrator running at 75 kHz (collector and base voltages):

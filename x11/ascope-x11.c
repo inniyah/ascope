@@ -412,7 +412,7 @@ main (void) {
 						XStoreName(dpy,win,"ascope [frozen]");
 					}
 				}
-				if (sync && cs.samp==0 && ks==XK_s) {
+				if (ks==XK_s) {
 					// enter single sweep mode
 					mode|=O_SNGL;
 					// change window name
