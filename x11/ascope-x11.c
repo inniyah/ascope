@@ -490,11 +490,13 @@ main (void) {
 			// send it to the device
 			write(fd,&cw,1);
 			tcflush(fd,TCOFLUSH);
+			// invalidate data and wait for new sync
+			sync=rdy=0;
 			// clear flag
 			sendcw=0;
 		}
 		// redraw
-		if (redraw) {
+		if (redraw && sync) {
 			// clear pixmap
 			XSetForeground(dpy,gc,0x000000);
 			XFillRectangle(dpy,pm,gc,0,0,pw,ph);
