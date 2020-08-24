@@ -468,16 +468,6 @@ main (void) {
 					free(buf);
 					XDestroyImage(ximg);
 				}
-				// update and send the new CW
-				if (sendcw) {
-					// make control word
-					cw=makecw(cs);
-					// send it to the device
-					write(fd,&cw,1);
-					tcflush(fd,TCOFLUSH);
-					// clear flag
-					sendcw=0;
-				}
 			}
 			if (sync && evt.type==ButtonPress) {
 				// show time and voltage below mouse pointer
@@ -491,6 +481,17 @@ main (void) {
 					printf("%.1f us, %.2f V\n",t,v);
 				}
 			}
+		}
+		// process flags
+		// update and send the new CW
+		if (sendcw) {
+			// make control word
+			cw=makecw(cs);
+			// send it to the device
+			write(fd,&cw,1);
+			tcflush(fd,TCOFLUSH);
+			// clear flag
+			sendcw=0;
 		}
 		// redraw
 		if (redraw) {
