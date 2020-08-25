@@ -49,18 +49,8 @@ ISR(ANALOG_COMP_vect) {
 		++ch;
 		// any channels left?
 		if (ch<cs.chs) {
-			// switch channel with care (Datasheet chap. 28.5)
-			// first, turn off ADC auto-triggering
-			cbi(ADCSRA,ADATE);
-			// wait for the ongoing conversion to complete
-			while (!(ADCSRA&(1<<ADIF)));
-			ADCSRA|=1<<ADIF;
 			// select next channel
 			ADMUX=(ADMUX&B11110000)+(ch&B00001111);
-			// enable auto-triggering again
-			sbi(ADCSRA,ADATE);
-			// and start first conversion
-			sbi(ADCSRA,ADSC);
 			// clear AC interrupt flag
 			// as it might be raised while this ISR is running,
 			// (we need to keep the phases synchronized)
