@@ -3,7 +3,7 @@
 // MIT License
 
 #define N 256 // samples in buffer
-#define MAXCHS 2 // maximum number of channels
+#define MAXCHS 2 // maximum number of channels (1..4)
 
 // control structure
 struct ctl {
