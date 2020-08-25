@@ -4,8 +4,8 @@
 
 #include "ascope.h"
 
-// conversion circuit
-const float Vmin=-5.0,Vmax=5.0; // input voltage range
+// input conditioning circuit parameters
+const float Vmin=-5.0,Vmax=5.0; // actual input voltage range
 // appearance
 const float VDIV=1.0; // volts per division
 const int SDIV=8; // samples per division
@@ -458,7 +458,9 @@ main (void) {
 					// open file
 					of=fopen(ofname,"w");
 					if (of==NULL) {
-						fprintf(stderr,"Can't open %s: %s\n",ofname,strerror(errno));
+						fprintf(stderr,
+							"Can't open %s: %s\n",
+							ofname,strerror(errno));
 					} else {
 						png_image_write_to_stdio(&pimg,of,0,buf,0,NULL);
 						fclose(of);
