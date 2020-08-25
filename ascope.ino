@@ -140,7 +140,7 @@ set_mode (struct ctl *cs) {
 		// real-time sampling
 		// reset some control structure fields
 		cs->prescale=2; // fastest sampling rate
-		// disable auto-trigger on Timer/Counter1 Compare Match B
+		// put ADC in free-running mode
 		cbi(ADCSRB,ADTS2);
 		cbi(ADCSRB,ADTS0);
 		// disable ADC interrupt
@@ -192,7 +192,7 @@ setup () {
 
 // sweep start-up specific to the selected sampling mode
 void
-start_mode (struct ctl cs) {
+sweep_start (struct ctl cs) {
 	if (cs.samp==1) {
 		// equivalent-time sampling
 		// set initial position and delay
@@ -235,7 +235,7 @@ loop () {
 	ch=0;
 	ADMUX&=B11110000;
 	// mode-specific startup actions
-	start_mode(cs);
+	sweep_start(cs);
 	// wait for the data to be ready
 	do {
 		// read the new control word, if available
