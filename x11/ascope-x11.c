@@ -11,7 +11,7 @@ const float VDIV=1.0; // volts per division
 const int SDIV=8; // samples per division
 const int W=512,H=256; // oscillogram width and height
 const int B=10; // border width
-const int clrs[MAXCHS]={0x00ff00,0xff0000}; // channel colors
+const int clrs[]={0x00ff00,0xff0000,0x0000ff,0xffffff}; // channel colors
 const int MAXP=8; // maximum time zoom power [may not exceed log2(N)]
 // device
 #define ODEV "/dev/ttyACM0" // oscilloscope device file
