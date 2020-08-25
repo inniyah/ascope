@@ -42,24 +42,10 @@ See the source code for details.
 
 ## Control software
 We provide a simple control program for Unix-like operating systems with
-X11 graphics. It requires just plain `Xlib` and `libpng` and is
+X11 graphics. It uses just plain `Xlib` and `libpng`. The program is
 controlled mostly from keyboard:
 
-key               | action
-------------------|-------
-`1`, `2`, ...     | Use 1, 2, ... channels
-`/`, `\`          | Trigger on rising or falling edge
-`a`               | Set auto-trigger mode (RT sampling only)
-`+`, `-`          | Increase or decrease sampling rate
-`m`               | Toggle sampling mode (RT or ET)
-`→`, `←`          | Increase or decrease time scale zoom
-`i`               | Toggle interpolation mode (linear or sinc)
-`s`               | Turn on single sweep mode
-`<space>`         | Freeze or thaw
-`d`               | Dump the raw data to `stderr`
-`w`               | Write the oscillogram to `./out.png`
-`q`               | Quit
-any mouse button  | Show the time and voltage values below the pointer
+![](docs/keys.svg)
 
 ## Example
 A multivibrator running at 75 kHz (collector and base voltages):
