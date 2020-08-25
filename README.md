@@ -58,5 +58,10 @@ the above oscillogram:
 
 ![](docs/cond.svg)
 
+## Customization
+The sketch and the control program are designed to be customized easily.
+Most parameters are set with `#define` or `const` directives. The
+sources contain a large number of comments.
+
 ## License
 MIT.
