@@ -136,11 +136,6 @@ set_mode (struct ctl *cs) {
 		sbi(ADCSRB,ADTS0);
 		// enable ADC interrupt
 		sbi(ADCSRA,ADIE);
-		// init Timer/Counter1
-		// reset control registers to the default values
-		TCCR1A=0;
-		TCCR1B=0;
-		TCCR1C=0;
 	} else {
 		// real-time sampling
 		// reset some control structure fields
@@ -173,6 +168,11 @@ setup () {
 	// disable digital input buffer on AIN0 and AIN1
 	sbi(DIDR1,AIN1D);
 	sbi(DIDR1,AIN0D);
+	// init Timer/Counter1
+	// reset control registers to the default values
+	TCCR1A=0;
+	TCCR1B=0;
+	TCCR1C=0;
 	// stop Timer/Counter0, since we're not using it,
 	// and don't want its ISR to delay our AC ISR
 	TCCR0B&=B11111000;
