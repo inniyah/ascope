@@ -136,8 +136,6 @@ set_mode (struct ctl *cs) {
 		sbi(ADCSRB,ADTS0);
 		// enable ADC interrupt
 		sbi(ADCSRA,ADIE);
-		// enable ADC
-		sbi(ADCSRA,ADEN);
 		// init Timer/Counter1
 		// reset control registers to the default values
 		TCCR1A=0;
@@ -167,6 +165,8 @@ setup () {
 	DIDR0=B11111111;
 	// enable auto trigger mode
 	sbi(ADCSRA,ADATE);
+	// enable ADC
+	sbi(ADCSRA,ADEN);
 	// init AC
 	// this trigger mode selection bit is always set
 	sbi(ACSR,ACIS1);
@@ -204,8 +204,7 @@ start_mode (struct ctl cs) {
 		// real-time sampling
 		// set ADC clock prescale value
 		ADCSRA=(ADCSRA&B11111000)+(B00000111&cs.prescale);
-		// start ADC
-		sbi(ADCSRA,ADEN);
+		// start first conversion
 		sbi(ADCSRA,ADSC);
 		// deal with trigger modes
 		if (cs.trig)
