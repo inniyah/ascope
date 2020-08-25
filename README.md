@@ -6,7 +6,7 @@ An Arduino Uno oscilloscope.
 * equivalent-time sampling rates up to 16 MSps,
 * trigger on rising or falling edge, or auto,
 * 8-bit resolution,
-* multiple channels.
+* up to 4 channels.
 
 ## The principle of operation
 The oscilloscope takes its input from the analog pins A0, A1, etc. In
