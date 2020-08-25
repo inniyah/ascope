@@ -4,6 +4,7 @@ An Arduino Uno oscilloscope.
 ## Features
 * real-time sampling rates up to 300 kSps,
 * equivalent-time sampling rates up to 16 MSps,
+* trigger on rising or falling edge, or auto,
 * 8-bit resolution,
 * multiple channels.
 
