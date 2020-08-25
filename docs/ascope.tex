@@ -4,7 +4,7 @@
 \usepackage[utf8]{inputenc}
 \usepackage[margin=1cm]{geometry}
 \usepackage{array}
-\newcolumntype{C}{>{\centering\arraybackslash}p{1.5cm}}
+\newcolumntype{C}{>{\centering\arraybackslash}p{2cm}}
 \def\arraystretch{1.5}
 
 \begin{document}
@@ -30,9 +30,29 @@ Sync marker &
 Control word &
 Data ready flag &
 Channel 1 data &
-... &
+\ldots &
 Channel {\it chs} data \\
 \hline
+\end{tabular}
+\newpage
+
+% Keyboard controls
+\begin{tabular}{c|c}
+key & action \\
+\hline
+1, 2, \ldots & Use 1, 2, \ldots channels \\
+$/, ~ \backslash$ & Trigger on rising or falling edge \\
+a &  Set auto-trigger mode (RT sampling only) \\
+$+, ~ -$ & Increase or decrease sampling rate \\
+m & Toggle sampling mode (RT or ET) \\
+$\rightarrow, ~ \leftarrow$ & Increase or decrease time scale zoom \\
+i & Toggle interpolation mode (linear or sinc) \\
+s & Turn on single sweep mode \\
+<space> & Freeze or thaw \\
+d & Dump the raw data to \tt stderr \\
+w & Write the oscillogram to \tt ./out.png \\
+q & Quit \\
+any mouse button & Show the time and voltage values below the pointer
 \end{tabular}
 \newpage
 
