@@ -30,6 +30,13 @@ The onboard LED is turned on while the acquisition is in progress.
 The analog bandwidth of the Arduino ADC input circuits is not much above
 100 kHz. Signals of higher frequency are considerably distorted.
 
+## Input signal conditioning
+Since the Arduino ADC accepts input in the range 0..5 V only, an
+external circuit is needed to buffer and fit input signals to the range
+suitable for the ADC. We use the following circuit for -5..+5 V inputs:
+
+![](docs/cond.svg)
+
 ## Control and data exchange protocol
 The oscilloscope takes its settings from a single-byte control word:
 
@@ -52,11 +59,6 @@ controlled mostly from keyboard:
 A multivibrator running at 75 kHz (collector and base voltages):
 
 ![](docs/out.png)
-
-A signal conditioning circuit for -5..+5 V inputs, used to produce
-the above oscillogram:
-
-![](docs/cond.svg)
 
 ## Customization
 The sketch and the control program are designed to be customized easily.
