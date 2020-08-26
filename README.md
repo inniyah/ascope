@@ -37,6 +37,12 @@ suitable for the ADC. We use the following circuit for -5..+5 V inputs:
 
 ![](docs/cond.svg)
 
+## Calibration output
+The sketch contains provisions for producing square waveforms in the
+wide range of frequencies (from 500 Hz to 500 kHz), which might be
+useful for testing and calibration of the oscilloscope in the absence of
+an external signal generator.
+
 ## Control and data exchange protocol
 The oscilloscope takes its settings from a single-byte control word:
 
