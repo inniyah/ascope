@@ -7,9 +7,11 @@
 // input conditioning circuit parameters
 const float Vmin=-5.0,Vmax=5.0; // actual input voltage range
 // appearance
-const float VDIV=1.0; // volts per division
-const int SDIV=8; // samples per division
-const int W=2*N,H=256; // oscillogram width and height
+const int SQ=50; // square size
+const int SQX=5,SQY=4; // squares in a quadrant
+const int W=SQ*SQX*2,H=SQ*SQY*2; // oscillogram width and height
+const float VDIV=(Vmax-Vmin)/2/SQY; // volts per division
+const int SDIV=N/2/SQX; // samples per division
 const int B=10; // border width
 const int clrs[]={0x00ff00,0xff0000,0x0000ff,0xffffff}; // channel colors
 const int MAXP=8; // maximum time zoom power [may not exceed log2(N)]
@@ -61,26 +63,33 @@ dt (struct ctl cs) {
 void
 makeosc (Display *dpy, Pixmap pm, GC gc, float buf[MAXCHS][N], int chs, int zt) {
 	int ch; // current channel
-	int i; // counter
-	int x,xprev,y,yprev; // coordinates
-	// draw grid lines
-	XSetForeground(dpy,gc,0x404040);
-	for (i=1; i<=floor(Vmax/VDIV); ++i) {
-		y=(H-1)*(Vmax-i*VDIV)/(Vmax-Vmin);
-		XDrawLine(dpy,pm,gc,0,y,W-1,y);
-	}
-	for (i=1; i<=floor(-Vmin/VDIV); ++i) {
-		y=(H-1)*(Vmax+i*VDIV)/(Vmax-Vmin);
-		XDrawLine(dpy,pm,gc,0,y,W-1,y);
-	}
-	for (i=0; i<=N/(zt*SDIV); ++i) {
-		x=i*zt*SDIV*(W-1)/N;
-		XDrawLine(dpy,pm,gc,x,0,x,H-1);
-	}	
-	// draw zero voltage axis
+	int i,j; // counters
+	int x,xprev,y,yprev,x1,y1; // coordinates
+	// draw graticule
+	XSetForeground(dpy,gc,0xffffff);
+	XDrawLine(dpy,pm,gc,W/2,0,W/2,H);
+	XDrawLine(dpy,pm,gc,0,H/2,W,H/2);
 	XSetForeground(dpy,gc,0x808080);
-	y=(H-1)*Vmax/(Vmax-Vmin);
-	XDrawLine(dpy,pm,gc,0,y,W-1,y);
+	for (i=1; i<=SQX; ++i) {
+		x=i*SQ;
+		for (j=1; j<=4; ++j) {
+			x1=j*SQ/5;
+			XDrawLine(dpy,pm,gc,W/2+x-x1,H/2-SQ/8,W/2+x-x1,H/2+SQ/8);
+			XDrawLine(dpy,pm,gc,W/2-x+x1,H/2-SQ/8,W/2-x+x1,H/2+SQ/8);
+		}
+		XDrawLine(dpy,pm,gc,W/2+x,0,W/2+x,H);
+		XDrawLine(dpy,pm,gc,W/2-x,0,W/2-x,H);
+	}
+	for (i=1; i<=SQY; ++i) {
+		y=i*SQ;
+		for (j=1; j<=4; ++j) {
+			y1=j*SQ/5;
+			XDrawLine(dpy,pm,gc,W/2-SQ/8,H/2+y-y1,W/2+SQ/8,H/2+y-y1);
+			XDrawLine(dpy,pm,gc,W/2-SQ/8,H/2-y+y1,W/2+SQ/8,H/2-y+y1);
+		}
+		XDrawLine(dpy,pm,gc,0,H/2+y,W,H/2+y);
+		XDrawLine(dpy,pm,gc,0,H/2-y,W,H/2-y);
+	}
 	if (!buf)
 		// return if no data available
 		// we use this to clear screen
@@ -90,7 +99,7 @@ makeosc (Display *dpy, Pixmap pm, GC gc, float buf[MAXCHS][N], int chs, int zt) 
 		XSetForeground(dpy,gc,clrs[ch]);
 		for (i=0; i<N; ++i) {
 			x=i*W/N;
-			y=(H-1)*(Vmax-buf[ch][i])/(Vmax-Vmin);
+			y=H*(Vmax-buf[ch][i])/(Vmax-Vmin);
 			if (i)
 				XDrawLine(dpy,pm,gc,xprev,yprev,x,y);
 			else
@@ -221,8 +230,8 @@ main (void) {
 	XDefineCursor(dpy,win,XCreateFontCursor(dpy,XC_crosshair));
 	XStoreName(dpy,win,"ascope");
 	XMapWindow(dpy,win);
-	pw=W;
-	ph=H+slh;
+	pw=W+1;
+	ph=H+slh+1;
 	pm=XCreatePixmap(dpy,win,pw,ph,DefaultDepth(dpy,scr));
 	XFillRectangle(dpy,pm,gc,0,0,pw,ph);
 	XFlush(dpy);
