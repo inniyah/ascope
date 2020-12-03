@@ -59,13 +59,11 @@ dt (struct ctl cs) {
 	}
 }
 
-// draw oscillogram on a pixmap
+// draw graticule
 void
-makeosc (Display *dpy, Pixmap pm, GC gc, float buf[MAXCHS][N], int chs, int zt) {
-	int ch; // current channel
+makegrat (Display *dpy, Pixmap pm, GC gc) {
 	int i,j; // counters
-	int x,xprev,y,yprev,x1,y1; // coordinates
-	// draw graticule
+	int x,y,x1,y1; // coordinates
 	XSetForeground(dpy,gc,0xffffff);
 	XDrawLine(dpy,pm,gc,W/2,0,W/2,H);
 	XDrawLine(dpy,pm,gc,0,H/2,W,H/2);
@@ -90,11 +88,14 @@ makeosc (Display *dpy, Pixmap pm, GC gc, float buf[MAXCHS][N], int chs, int zt) 
 		XDrawLine(dpy,pm,gc,0,H/2+y,W,H/2+y);
 		XDrawLine(dpy,pm,gc,0,H/2-y,W,H/2-y);
 	}
-	if (!buf)
-		// return if no data available
-		// we use this to clear screen
-		return;
-	// draw waveforms
+}
+
+// draw oscillogram
+void
+makeosc (Display *dpy, Pixmap pm, GC gc, float buf[MAXCHS][N], int chs) {
+	int ch; // current channel
+	int i; // counter
+	int x,xprev,y,yprev; // coordinates
 	for (ch=0; ch<chs; ++ch) {
 		XSetForeground(dpy,gc,clrs[ch]);
 		for (i=0; i<N; ++i) {
@@ -189,7 +190,7 @@ main (void) {
 	XEvent evt;
 	int scr;
         GC gc;
-	Pixmap pm;
+	Pixmap pm,gpm;
 	KeySym ks;
 	XFontStruct *fs;
 	int slh; // status line height
@@ -233,7 +234,7 @@ main (void) {
 	pw=W+1;
 	ph=H+slh+1;
 	pm=XCreatePixmap(dpy,win,pw,ph,DefaultDepth(dpy,scr));
-	XFillRectangle(dpy,pm,gc,0,0,pw,ph);
+	gpm=XCreatePixmap(dpy,win,pw,ph,DefaultDepth(dpy,scr));
 	XFlush(dpy);
 
 	// prepare pollfd structures
@@ -245,6 +246,9 @@ main (void) {
 	// flush input buffer as it might contain invalid data
 	// received before the terminal settings took effect
 	tcflush(fd,TCIFLUSH);
+
+	// prepare graticule
+	makegrat(dpy,gpm,gc);
 
 	// event loop
 	while (1) {
@@ -508,9 +512,9 @@ main (void) {
 		}
 		// redraw
 		if (redraw && sync) {
-			// clear pixmap
-			XSetForeground(dpy,gc,0x000000);
-			XFillRectangle(dpy,pm,gc,0,0,pw,ph);
+			// copy graticule
+			XCopyArea(dpy,gpm,pm,gc,0,0,pw,ph,0,0);
+			// draw oscillogram
 			if (rdy) {
 				// do interpolation (zoom)
 				for (ch=0; ch<cs.chs; ++ch)
@@ -525,15 +529,12 @@ main (void) {
 						// copy
 						memcpy(zbuf[ch],vbuf[ch], \
 						N*sizeof(float));
-				// draw oscillogram
-				makeosc(dpy,pm,gc,zbuf,cs.chs,zt);
-			} else
-				// draw empty grid
-				makeosc(dpy,pm,gc,NULL,cs.chs,zt);
+				makeosc(dpy,pm,gc,zbuf,cs.chs);
+			}
 			// draw status line
 			if (zt==1)
 				snprintf(str,256,
-				"%.1f V/div, "
+				"%.2f V/div, "
 				"%.1f us/div %cT, "
 				"%d ch%s, "
 				"%c",
