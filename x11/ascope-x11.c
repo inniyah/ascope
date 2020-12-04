@@ -9,9 +9,6 @@ const float Vmin=-5.0,Vmax=5.0; // actual input voltage range
 // appearance
 const int SQ=50; // square size
 const int SQX=5,SQY=4; // squares in a quadrant
-const int W=SQ*SQX*2,H=SQ*SQY*2; // oscillogram width and height
-const float VDIV=(Vmax-Vmin)/2/SQY; // volts per division
-const int SDIV=N/2/SQX; // samples per division
 const int B=10; // border width
 const int clrs[]={0x00ff00,0xff0000,0x0000ff,0xffffff}; // channel colors
 const int MAXP=8; // maximum time zoom power [may not exceed log2(N)]
@@ -38,6 +35,12 @@ const int POLLTIMO=5000; // poll timeout in milliseconds
 #include <errno.h>
 
 const float pi=3.14159265358979323846;
+
+// derived constants
+const int W=SQ*SQX*2,H=SQ*SQY*2; // oscillogram width and height
+const float VDIVX=(Vmax-Vmin)/2/SQX; // volts per X division
+const float VDIVY=(Vmax-Vmin)/2/SQY; // volts per Y division
+const int SDIV=N/2/SQX; // samples per division
 
 // sample to voltage conversion
 float
@@ -92,21 +95,37 @@ makegrat (Display *dpy, Pixmap pm, GC gc) {
 
 // draw oscillogram
 void
-makeosc (Display *dpy, Pixmap pm, GC gc, float buf[MAXCHS][N], int chs) {
+makeosc (Display *dpy, Pixmap pm, GC gc, float buf[MAXCHS][N], int chs, int xy) {
 	int ch; // current channel
 	int i; // counter
 	int x,xprev,y,yprev; // coordinates
-	for (ch=0; ch<chs; ++ch) {
-		XSetForeground(dpy,gc,clrs[ch]);
+	if (xy) {
+		// XY mode
+		XSetForeground(dpy,gc,clrs[0]|clrs[1]);
 		for (i=0; i<N; ++i) {
-			x=i*W/N;
-			y=H*(Vmax-buf[ch][i])/(Vmax-Vmin);
+			x=W*(buf[0][i]-Vmin)/(Vmax-Vmin);
+			y=H*(Vmax-buf[1][i])/(Vmax-Vmin);
 			if (i)
 				XDrawLine(dpy,pm,gc,xprev,yprev,x,y);
 			else
-				XDrawPoint(dpy,pm,gc,0,y);
+				XDrawPoint(dpy,pm,gc,x,y);
 			xprev=x;
 			yprev=y;
+		}
+	} else {
+		// normal mode
+		for (ch=0; ch<chs; ++ch) {
+			XSetForeground(dpy,gc,clrs[ch]);
+			for (i=0; i<N; ++i) {
+				x=i*W/N;
+				y=H*(Vmax-buf[ch][i])/(Vmax-Vmin);
+				if (i)
+					XDrawLine(dpy,pm,gc,xprev,yprev,x,y);
+				else
+					XDrawPoint(dpy,pm,gc,0,y);
+				xprev=x;
+				yprev=y;
+			}
 		}
 	}
 }
@@ -178,7 +197,7 @@ main (void) {
 	int fd; // oscilloscope device file descriptor
 	struct termios t; // terminal structure
 	struct pollfd pfds[2]; // poll structures
-	enum {O_LIN=0x1,O_RUN=0x2,O_SNGL=0x4} mode=3; // mode of operation
+	enum {M_LIN=1,M_RUN=2,M_SNGL=4,M_XY=8} mode=3; // mode of operation
 	char str[256]; // string buffer (for status line text and keyboard input)
 	int sync=0; // sync flag, means CW is received
 	int rdy=0; // data ready flag, means oscillogram is received
@@ -190,7 +209,8 @@ main (void) {
 	XEvent evt;
 	int scr;
         GC gc;
-	Pixmap pm,gpm;
+	Pixmap pm; // combined pixmap
+	Pixmap gpm; // graticule pixmap
 	KeySym ks;
 	XFontStruct *fs;
 	int slh; // status line height
@@ -255,7 +275,7 @@ main (void) {
 		// wait for events
 		if (!poll(pfds,2,POLLTIMO)) {
 			// poll() timed out
-			if (sync && mode&O_RUN) {
+			if (sync && mode&M_RUN) {
 				// clear ready flag
 				rdy=0;
 				// request redraw
@@ -290,8 +310,8 @@ main (void) {
 						}
 				}
 				// freeze if we're in single sweep mode
-				if (mode&O_SNGL) {
-					mode&=~O_RUN;
+				if (mode&M_SNGL) {
+					mode&=~M_RUN;
 					// remove device fd
 					// from the poll structure
 					// to ignore serial events
@@ -300,7 +320,7 @@ main (void) {
 					XStoreName(dpy,win,\
 					"ascope [frozen]");
 					// quit single sweep mode as well
-					mode&=~O_SNGL;
+					mode&=~M_SNGL;
 				}
 				// request redraw
 				redraw=1;
@@ -320,12 +340,12 @@ main (void) {
 					// quit
 					return 0;
 				}
-				if (sync && mode&O_RUN && ks==XK_m) {
+				if (sync && mode&M_RUN && ks==XK_m) {
 					// toggle sampling mode
 					cs.samp=(cs.samp==1)?0:1;
 					sendcw=1;
 				}
-				if (sync && mode&O_RUN && isdigit(str[0])) {
+				if (sync && mode&M_RUN && isdigit(str[0])) {
 					// set number of channels
 					str[1]=0;
 					cs.chs=atoi(str);
@@ -333,7 +353,7 @@ main (void) {
 					if (cs.chs>MAXCHS) cs.chs=MAXCHS;
 					sendcw=1;
 				}
-				if (sync && mode&O_RUN && ks==XK_plus) {
+				if (sync && mode&M_RUN && ks==XK_plus) {
 					// increase sampling rate
 					if (cs.samp==1) {
 						// equivalent-time
@@ -349,7 +369,7 @@ main (void) {
 						}
 					}
 				}
-				if (sync && mode&O_RUN && ks==XK_minus) {
+				if (sync && mode&M_RUN && ks==XK_minus) {
 					// decrease sampling rate
 					if (cs.samp==1) {
 						// equivalent-time
@@ -365,24 +385,24 @@ main (void) {
 						}
 					}
 				}
-				if (sync && cs.samp==0 && mode&O_RUN && ks==XK_a) {
+				if (sync && cs.samp==0 && mode&M_RUN && ks==XK_a) {
 					// set auto-trigger mode
 					cs.trig=0;
 					sendcw=1;
 				}
-				if (sync && mode&O_RUN && ks==XK_slash) {
+				if (sync && mode&M_RUN && ks==XK_slash) {
 					// trigger on rising edge
 					cs.slope=1;
 					cs.trig=1;
 					sendcw=1;
 				}
-				if (sync && mode&O_RUN && ks==XK_backslash) {
+				if (sync && mode&M_RUN && ks==XK_backslash) {
 					// trigger on falling edge
 					cs.slope=0;
 					cs.trig=1;
 					sendcw=1;
 				}
-				if (sync && mode&O_RUN && ks==XK_Right) {
+				if (sync && mode&M_RUN && ks==XK_Right) {
 					// increase time zoom
 					if (p<MAXP) {
 						++p;
@@ -390,7 +410,7 @@ main (void) {
 					}
 					redraw=1;
 				}
-				if (sync && mode&O_RUN && ks==XK_Left) {
+				if (sync && mode&M_RUN && ks==XK_Left) {
 					// decrease time zoom
 					if (p>0) {
 						--p;
@@ -398,14 +418,18 @@ main (void) {
 					}
 					redraw=1;
 				}
-				if (sync && mode&O_RUN && p && ks==XK_i) {
+				if (sync && mode&M_RUN && p && ks==XK_i) {
 					// toggle interpolation mode
-					mode^=O_LIN;
+					mode^=M_LIN;
+				}
+				if (sync && mode&M_RUN && cs.chs==2 && ks==XK_x) {
+					// toggle XY mode
+					mode^=M_XY;
 				}
 				if (ks==XK_space) {
 					// toggle run mode
-					mode^=O_RUN;
-					if (mode&O_RUN) {
+					mode^=M_RUN;
+					if (mode&M_RUN) {
 						// return device fd
 						// to the poll structure
 						pfds[0].fd=fd;
@@ -427,7 +451,7 @@ main (void) {
 				}
 				if (ks==XK_s) {
 					// enter single sweep mode
-					mode|=O_SNGL;
+					mode|=M_SNGL;
 					// change window name
 					XStoreName(dpy,win,"ascope [single-sweep]");
 				}
@@ -489,11 +513,18 @@ main (void) {
 				float x,y;
 				x=evt.xbutton.x-B;
 				y=evt.xbutton.y-B;
-				if (x<W && y<H) {
-					float t,v;
-					t=(x/W)*N*dt(cs)/zt;
-					v=(Vmax-(Vmax-Vmin)*y/(H-1));
-					printf("%.1f us, %.2f V\n",t,v);
+				if (x<=W && y<=H) {
+					if (mode&M_XY) {
+						float vx,vy;
+						vx=(Vmin+(Vmax-Vmin)*x/W);
+						vy=(Vmax-(Vmax-Vmin)*y/H);
+						printf("%.2f V, %.2f V\n",vx,vy);
+					} else {
+						float t,v;
+						t=(x/W)*N*dt(cs)/zt;
+						v=(Vmax-(Vmax-Vmin)*y/H);
+						printf("%.1f us, %.2f V\n",t,v);
+					}
 				}
 			}
 		}
@@ -518,7 +549,7 @@ main (void) {
 			if (rdy) {
 				// do interpolation (zoom)
 				for (ch=0; ch<cs.chs; ++ch)
-					if (zt>1 && mode&O_LIN)
+					if (zt>1 && mode&M_LIN)
 						// linear interpolation
 						interp_lin(zt,vbuf[ch],zbuf[ch]);
 					else if (zt>1)
@@ -529,29 +560,39 @@ main (void) {
 						// copy
 						memcpy(zbuf[ch],vbuf[ch], \
 						N*sizeof(float));
-				makeosc(dpy,pm,gc,zbuf,cs.chs);
+				makeosc(dpy,pm,gc,zbuf,cs.chs,mode&M_XY);
 			}
 			// draw status line
-			if (zt==1)
+			if (mode&M_XY)
 				snprintf(str,256,
-				"%.2f V/div, "
+				"%.2f V/divX, %.2f V/divY, "
+				"%.1f ms %cT, "
+				"%c",
+				VDIVX,VDIVY,
+				N*dt(cs)/1000/zt,cs.samp?'E':'R',
+				cs.trig?cs.slope?'/':'\\':'A');
+			else if (zt==1)
+				snprintf(str,256,
 				"%.1f us/div %cT, "
+				"%.2f V/div, "
 				"%d ch%s, "
 				"%c",
-				VDIV,
 				SDIV*dt(cs),
 				cs.samp?'E':'R',
+				VDIVY,
 				cs.chs,cs.chs>1?"s":"",
 				cs.trig?cs.slope?'/':'\\':'A');
 			else
 				snprintf(str,256,
+				"%.1f us/div %cTx%d%c, "
 				"%.1f V/div, "
-				"%.1f us/div (%dx %s) %cT, "
 				"%d ch%s, "
 				"%c",
-				VDIV,
-				SDIV*dt(cs)/zt,zt,(mode&O_LIN)?"linear":"sinc",
+				SDIV*dt(cs)/zt,
 				cs.samp?'E':'R',
+				zt,
+				(mode&M_LIN)?'L':'S',
+				VDIVY,
 				cs.chs,cs.chs>1?"s":"",
 				cs.trig?cs.slope?'/':'\\':'A');
 			XSetForeground(dpy,gc,0xffffff);
