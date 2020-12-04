@@ -513,7 +513,7 @@ main (void) {
 				float x,y;
 				x=evt.xbutton.x-B;
 				y=evt.xbutton.y-B;
-				if (x<=W && y<=H) {
+				if (x>=0 && x<=W && y>=0 && y<=H) {
 					if (mode&M_XY) {
 						float vx,vy;
 						vx=(Vmin+(Vmax-Vmin)*x/W);
