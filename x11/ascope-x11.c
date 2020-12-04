@@ -550,7 +550,7 @@ main (void) {
 				"%d ch%s, "
 				"%c",
 				VDIV,
-				SDIV*dt(cs),zt,(mode&O_LIN)?"linear":"sinc",
+				SDIV*dt(cs)/zt,zt,(mode&O_LIN)?"linear":"sinc",
 				cs.samp?'E':'R',
 				cs.chs,cs.chs>1?"s":"",
 				cs.trig?cs.slope?'/':'\\':'A');
