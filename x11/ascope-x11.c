@@ -568,7 +568,7 @@ main (void) {
 				if (zt==1)
 					snprintf(str,256,
 					"%.2f V/divX, %.2f V/divY, "
-					"%.1f ms %cT, "
+					"%.2f ms %cT, "
 					"%c",
 					VDIVX,VDIVY,
 					N*dt(cs)/1000/zt,cs.samp?'E':'R',
@@ -576,7 +576,7 @@ main (void) {
 				else
 					snprintf(str,256,
 					"%.2f V/divX, %.2f V/divY, "
-					"%.1f ms %cT (x%d%c), "
+					"%.2f ms %cT (x%d%c), "
 					"%c",
 					VDIVX,VDIVY,
 					N*dt(cs)/1000/zt,cs.samp?'E':'R',
