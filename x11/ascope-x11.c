@@ -351,6 +351,7 @@ main (void) {
 					cs.chs=atoi(str);
 					if (cs.chs<1) cs.chs=1;
 					if (cs.chs>MAXCHS) cs.chs=MAXCHS;
+					if (cs.chs!=2) mode&=~M_XY;
 					sendcw=1;
 				}
 				if (sync && mode&M_RUN && ks==XK_plus) {
