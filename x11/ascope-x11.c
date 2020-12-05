@@ -564,37 +564,49 @@ main (void) {
 			}
 			// draw status line
 			if (mode&M_XY)
-				snprintf(str,256,
-				"%.2f V/divX, %.2f V/divY, "
-				"%.1f ms %cT, "
-				"%c",
-				VDIVX,VDIVY,
-				N*dt(cs)/1000/zt,cs.samp?'E':'R',
-				cs.trig?cs.slope?'/':'\\':'A');
-			else if (zt==1)
-				snprintf(str,256,
-				"%.1f us/div %cT, "
-				"%.2f V/div, "
-				"%d ch%s, "
-				"%c",
-				SDIV*dt(cs),
-				cs.samp?'E':'R',
-				VDIVY,
-				cs.chs,cs.chs>1?"s":"",
-				cs.trig?cs.slope?'/':'\\':'A');
+				if (zt==1)
+					snprintf(str,256,
+					"%.2f V/divX, %.2f V/divY, "
+					"%.1f ms %cT, "
+					"%c",
+					VDIVX,VDIVY,
+					N*dt(cs)/1000/zt,cs.samp?'E':'R',
+					cs.trig?cs.slope?'/':'\\':'A');
+				else
+					snprintf(str,256,
+					"%.2f V/divX, %.2f V/divY, "
+					"%.1f ms %cT (x%d%c), "
+					"%c",
+					VDIVX,VDIVY,
+					N*dt(cs)/1000/zt,cs.samp?'E':'R',
+					zt,
+					(mode&M_LIN)?'L':'S',
+					cs.trig?cs.slope?'/':'\\':'A');
 			else
-				snprintf(str,256,
-				"%.1f us/div %cTx%d%c, "
-				"%.1f V/div, "
-				"%d ch%s, "
-				"%c",
-				SDIV*dt(cs)/zt,
-				cs.samp?'E':'R',
-				zt,
-				(mode&M_LIN)?'L':'S',
-				VDIVY,
-				cs.chs,cs.chs>1?"s":"",
-				cs.trig?cs.slope?'/':'\\':'A');
+				if (zt==1)
+					snprintf(str,256,
+					"%.1f us/div %cT, "
+					"%.2f V/div, "
+					"%d ch%s, "
+					"%c",
+					SDIV*dt(cs),
+					cs.samp?'E':'R',
+					VDIVY,
+					cs.chs,cs.chs>1?"s":"",
+					cs.trig?cs.slope?'/':'\\':'A');
+				else
+					snprintf(str,256,
+					"%.1f us/div %cT (x%d%c), "
+					"%.1f V/div, "
+					"%d ch%s, "
+					"%c",
+					SDIV*dt(cs)/zt,
+					cs.samp?'E':'R',
+					zt,
+					(mode&M_LIN)?'L':'S',
+					VDIVY,
+					cs.chs,cs.chs>1?"s":"",
+					cs.trig?cs.slope?'/':'\\':'A');
 			XSetForeground(dpy,gc,0xffffff);
 			XDrawString(dpy,pm,gc,0,ph-1,str,strlen(str));
 			// send itself an exposure event
