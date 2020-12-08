@@ -61,10 +61,18 @@ controlled mostly from keyboard:
 
 ![](docs/keys.svg)
 
-## Example
-A multivibrator running at 75 kHz (collector and base voltages):
+## Examples
+Two 1.6 kHz sine waves, sampled at 150 kSps real-time:
 
-![](docs/out.png)
+![](docs/out1.png)
+
+The same signals, plotted in XY mode:
+
+![](docs/out2.png)
+
+A multivibrator running at 35 kHz, sampled at 2 MSps equivalent-time:
+
+![](docs/out3.png)
 
 ## Customization
 The sketch and the control program are designed to be customized easily.
