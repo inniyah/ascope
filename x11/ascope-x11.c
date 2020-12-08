@@ -458,10 +458,12 @@ main (void) {
 				}
 				if (rdy && ks==XK_d) {
 					// dump raw buffer to stderr
-					for (ch=0; ch<cs.chs; ++ch)
-						for (n=0; n<N; ++n)
-							fprintf(stderr,\
-							"%hhu\n",rbuf[ch][n]);
+					for (n=0; n<N; ++n) {
+						for (ch=0; ch<cs.chs; ++ch)
+							fprintf(stderr,
+							"%hhu ",rbuf[ch][n]);
+						fprintf(stderr,"\n");
+					}
 					fflush(stderr);
 				}
 				if (rdy && ks==XK_w) {
