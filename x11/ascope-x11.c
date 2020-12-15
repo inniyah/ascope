@@ -457,14 +457,24 @@ main (void) {
 					XStoreName(dpy,win,"ascope [single-sweep]");
 				}
 				if (rdy && ks==XK_d) {
-					// dump raw buffer to stderr
-					for (n=0; n<N; ++n) {
-						for (ch=0; ch<cs.chs; ++ch)
-							fprintf(stderr,
-							"%hhu ",rbuf[ch][n]);
-						fprintf(stderr,"\n");
+					// dump raw buffer to a file
+					FILE *of; // output file
+					const char *ofname="out.dump"; // file name
+					of=fopen(ofname,"w");
+					if (of==NULL) {
+						fprintf(stderr,
+							"Can't open %s: %s\n",
+							ofname,strerror(errno));
+					} else {
+						for (n=0; n<N; ++n) {
+							for (ch=0; ch<cs.chs; ++ch)
+								fprintf(of,
+								"%hhu ",rbuf[ch][n]);
+							fprintf(of,"\n");
+						}
+						fclose(of);
+						printf("wrote %s\n",ofname);
 					}
-					fflush(stderr);
 				}
 				if (rdy && ks==XK_w) {
 					// write oscillogram to a file
@@ -495,7 +505,7 @@ main (void) {
 							*ptr++=(p&0x00ff00)>>8;
 							*ptr++=p&0x0000ff;
 						}
-					// open file
+					// save to file
 					of=fopen(ofname,"w");
 					if (of==NULL) {
 						fprintf(stderr,
