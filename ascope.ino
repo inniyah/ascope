@@ -2,6 +2,8 @@
 // Copyright (c) 2020 Alexander Mukhin
 // MIT License
 
+#include "ascope.h"
+
 // global variables
 unsigned char buf[MAXCHS][N]; // data buffer
 struct ctl cs; // control structure
