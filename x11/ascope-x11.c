@@ -350,7 +350,7 @@ main (void) {
 					cs.samp=(cs.samp==1)?0:1;
 					sendcw=1;
 				}
-				if (sync && mode&M_RUN && isdigit(str[0])) {
+				if (sync && mode&M_RUN && isdigit((int)str[0])) {
 					// set number of channels
 					str[1]=0;
 					cs.chs=atoi(str);
