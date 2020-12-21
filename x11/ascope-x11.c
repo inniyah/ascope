@@ -231,6 +231,7 @@ main (void) {
 	t.c_iflag&=~(ICRNL|IXON);
 	t.c_oflag&=~OPOST;
 	t.c_cflag&=~HUPCL;
+	t.c_cflag|=CLOCAL;
 	t.c_lflag&=~(ICANON|ECHO|IEXTEN|ISIG);
 	tcsetattr(fd,TCSANOW,&t);
 
