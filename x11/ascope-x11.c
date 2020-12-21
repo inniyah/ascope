@@ -2,20 +2,22 @@
 // Copyright (c) 2020 Alexander Mukhin
 // MIT License
 
-#include "ascope.h"
-
-// input conditioning circuit parameters
-const float Vmin=-5.0,Vmax=5.0; // actual input voltage range
-// appearance
-const int SQ=50; // square size
-const int SQX=5,SQY=4; // squares in a quadrant
-const int B=10; // border width
-const int clrs[]={0x00ff00,0xff0000,0x0000ff,0xffffff}; // channel colors
-const int MAXP=8; // maximum time zoom power [may not exceed log2(N)]
 // device
-#define ODEV "/dev/ttyACM0" // oscilloscope device file
-const int POLLTIMO=5000; // poll timeout in milliseconds
+#define DEV "/dev/ttyACM0"
+// actual input voltage range
+#define Vmin -5.0
+#define Vmax 5.0
+// square size
+#define SQ 50
+// squares in a quadrant
+#define SQX 5
+#define SQY 4
+// border width
+const int B=10;
+// channel colors
+const int clrs[]={0x00ff00,0xff0000,0x0000ff,0xffffff};
 
+#include "ascope.h"
 #include <stdio.h>
 #include <sys/types.h>
 #include <sys/stat.h>
@@ -34,13 +36,15 @@ const int POLLTIMO=5000; // poll timeout in milliseconds
 #include <png.h>
 #include <errno.h>
 
-const float pi=3.14159265358979323846;
-
 // derived constants
 const int W=SQ*SQX*2,H=SQ*SQY*2; // oscillogram width and height
 const float VDIVX=(Vmax-Vmin)/2/SQX; // volts per X division
 const float VDIVY=(Vmax-Vmin)/2/SQY; // volts per Y division
 const int SDIV=N/2/SQX; // samples per division
+// other constants
+const int MAXP=8; // maximum time zoom power [may not exceed log2(N)]
+const int POLLTIMO=5000; // poll timeout in milliseconds
+const float pi=3.14159265358979323846;
 
 // sample to voltage conversion
 float
@@ -221,7 +225,7 @@ main (void) {
 	fill_sinc(sinctbl);
 
 	// open device
-	fd=open(ODEV,O_RDWR);
+	fd=open(DEV,O_RDWR);
 	if (fd==-1) {
 		fprintf(stderr,"Cannot open device\n");
 		return 1;
