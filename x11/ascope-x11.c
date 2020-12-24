@@ -230,13 +230,14 @@ main (void) {
 		fprintf(stderr,"Cannot open device\n");
 		return 1;
 	}
-	// put it to non-canonical mode
+	// put it to raw mode
 	tcgetattr(fd,&t);
 	t.c_iflag&=~(ICRNL|IXON);
 	t.c_oflag&=~OPOST;
 	t.c_cflag&=~HUPCL;
 	t.c_cflag|=CLOCAL;
 	t.c_lflag&=~(ICANON|ECHO|IEXTEN|ISIG);
+	t.c_cc[VMIN]=1;
 	tcsetattr(fd,TCSANOW,&t);
 
 	// init X
