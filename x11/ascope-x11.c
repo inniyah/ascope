@@ -230,14 +230,19 @@ main (void) {
 		fprintf(stderr,"Cannot open device\n");
 		return 1;
 	}
-	// put it to raw mode
+	// set up line
 	tcgetattr(fd,&t);
-	t.c_iflag&=~(ICRNL|IXON);
-	t.c_oflag&=~OPOST;
-	t.c_cflag&=~HUPCL;
-	t.c_cflag|=CLOCAL;
-	t.c_lflag&=~(ICANON|ECHO|IEXTEN|ISIG);
-	t.c_cc[VMIN]=1;
+	cfsetispeed(&t,B9600); // 9600 baud input
+	cfsetospeed(&t,B9600); // 9600 baud output
+	t.c_cflag|=CS8; // 8-bit character
+	t.c_cflag&=~(PARENB|CSTOPB); // no parity, one stop bit
+	t.c_lflag&=~(ICANON|IEXTEN|ISIG); // ignore special characters
+	t.c_lflag&=~ECHO; // do not echo
+	t.c_iflag&=~(ICRNL|INLCR|IGNCR); // do nothing with NL and CR
+	t.c_iflag&=~(IXON|IXOFF); // do not accept or send START/STOP
+	t.c_oflag&=~OPOST; // do not postprocess output
+	t.c_cflag|=CLOCAL; // line without modem control
+	t.c_cc[VMIN]=1; // minimum 1 character for a completed read
 	tcsetattr(fd,TCSANOW,&t);
 
 	// init X
