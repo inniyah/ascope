@@ -17,6 +17,18 @@ volatile unsigned char rdy; // ready flag
 #define sbi(port,bit) (port)|=(1<<(bit))
 #define cbi(port,bit) (port)&=~(1<<(bit))
 
+// set channel
+// (stops free-running mode)
+void
+set_chan (unsigned char ch) {
+	// disable ADC
+	cbi(ADCSRA,ADEN);
+	// set channel
+	ADMUX=(ADMUX&B11110000)+(ch&B00001111);
+	// enable ADC
+	sbi(ADCSRA,ADEN);
+}
+
 // AC ISR
 ISR(ANALOG_COMP_vect) {
 	if (cs.samp==1) {
@@ -52,7 +64,9 @@ ISR(ANALOG_COMP_vect) {
 		// any channels left?
 		if (ch<cs.chs) {
 			// select next channel
-			ADMUX=(ADMUX&B11110000)+(ch&B00001111);
+			set_chan(ch);
+			// start first conversion
+			sbi(ADCSRA,ADSC);
 			// clear AC interrupt flag
 			// as it might be raised while this ISR is running,
 			// (we need to keep the phases synchronized)
@@ -97,7 +111,7 @@ ISR(ADC_vect,ISR_NOBLOCK) {
 		// any channels left?
 		if (ch<cs.chs) {
 			// select the next channel
-			ADMUX=(ADMUX&B11110000)+(ch&B00001111);
+			set_chan(ch);
 		} else {
 			// done with the last channel
 			// turn off acquisition LED
@@ -249,7 +263,7 @@ loop () {
 		cbi(ACSR,ACIS0);
 	// select channel 0
 	ch=0;
-	ADMUX&=B11110000;
+	set_chan(ch);
 	// mode-specific startup actions
 	sweep_start(cs);
 	// wait for the data to be ready
