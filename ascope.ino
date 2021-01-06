@@ -18,7 +18,7 @@ volatile unsigned char rdy; // ready flag
 #define cbi(port,bit) (port)&=~(1<<(bit))
 
 // set channel
-// (stops free-running mode)
+// (NB: it stops free-running mode)
 void
 set_chan (unsigned char ch) {
 	// disable ADC
@@ -127,33 +127,6 @@ ISR(ADC_vect,ISR_NOBLOCK) {
 	ACSR|=B00011000;
 }
 
-// set selected sampling mode
-void
-set_mode (struct ctl *cs) {
-	if (cs->samp==1) {
-		// equivalent-time sampling
-		// reset some control structure fields
-		cs->trig=1; // normal triggering
-		cs->prescale=1; // fastest sampling rate
-		// set ADC clock prescale value
-		ADCSRA=(ADCSRA&B11111000)+2;
-		// set auto-trigger on Timer/Counter1 Compare Match B
-		sbi(ADCSRB,ADTS2);
-		sbi(ADCSRB,ADTS0);
-		// enable ADC interrupt
-		sbi(ADCSRA,ADIE);
-	} else {
-		// real-time sampling
-		// reset some control structure fields
-		cs->prescale=2; // fastest sampling rate
-		// put ADC in free-running mode
-		cbi(ADCSRB,ADTS2);
-		cbi(ADCSRB,ADTS0);
-		// disable ADC interrupt
-		cbi(ADCSRA,ADIE);
-	}
-}
-
 void
 setup () {
 	// init ADC
@@ -188,12 +161,12 @@ setup () {
 	// we use LED 13 as an acquisition indicator
 	pinMode(13,OUTPUT);
 	PORTB&=B11011111;
-	// set initial mode
+	// initial mode
 	cs.samp=0; // RT sampling
 	cs.trig=0; // auto-trigger
 	cs.chs=1; // one channel
 	cs.slope=1; // default
-	set_mode(&cs);
+	cs.prescale=2; // fastest rate
 #if 0
 // enable calibration PWM output
 // clear TC2 control registers
@@ -220,11 +193,29 @@ pinMode(11,OUTPUT);
 #endif
 }
 
-// sweep start-up specific to the selected sampling mode
+// sweep start-up
 void
 sweep_start (struct ctl cs) {
+	// set trigger slope
+	if (cs.slope)
+		// trigger on rising edge
+		sbi(ACSR,ACIS0);
+	else
+		// trigger on falling edge
+		cbi(ACSR,ACIS0);
+	// select channel 0
+	ch=0;
+	set_chan(ch);
+	// mode-specific actions
 	if (cs.samp==1) {
 		// equivalent-time sampling
+		// set ADC clock prescale value
+		ADCSRA=(ADCSRA&B11111000)+2; // fastest
+		// set auto-trigger on Timer/Counter1 Compare Match B
+		sbi(ADCSRB,ADTS2);
+		sbi(ADCSRB,ADTS0);
+		// enable ADC interrupt
+		sbi(ADCSRA,ADIE);
 		// set initial position and delay
 		n=0;
 		OCR1B=1;
@@ -232,8 +223,13 @@ sweep_start (struct ctl cs) {
 		sbi(ACSR,ACIE);
 	} else {
 		// real-time sampling
+		// put ADC in free-running mode
+		cbi(ADCSRB,ADTS2);
+		cbi(ADCSRB,ADTS0);
+		// disable ADC interrupt
+		cbi(ADCSRA,ADIE);
 		// set ADC clock prescale value
-		ADCSRA=(ADCSRA&B11111000)+(B00000111&cs.prescale);
+		ADCSRA=(ADCSRA&B11111000)+cs.prescale;
 		// start first conversion
 		sbi(ADCSRA,ADSC);
 		// deal with trigger modes
@@ -254,33 +250,18 @@ loop () {
 	unsigned char c;
 	// clear ready flag
 	rdy=0;
-	// set trigger slope
-	if (cs.slope)
-		// trigger on rising edge
-		sbi(ACSR,ACIS0);
-	else
-		// trigger on falling edge
-		cbi(ACSR,ACIS0);
-	// select channel 0
-	ch=0;
-	set_chan(ch);
-	// mode-specific startup actions
+	// start sweep
 	sweep_start(cs);
 	// wait for the data to be ready
 	do {
 		// read the new control word, if available
 		if (Serial.available()) {
-			struct ctl newcs;
 			// stop current sweep
 			cbi(ACSR,ACIE); // disable AC interrupt
-			TCCR1B&=B11111000; // stop timer
+			TCCR1B&=B11111000; // stop timer (for ET mode)
 			// read and parse the new control word
 			c=Serial.read();
-			parsecw(c,&newcs);
-			// change mode, if necessary
-			if (newcs.samp!=cs.samp)
-				set_mode(&newcs);
-			cs=newcs;
+			parsecw(c,&cs);
 			// clear ready flag and start new sweep
 			rdy=0;
 			break;
