@@ -20,7 +20,7 @@ volatile unsigned char rdy; // ready flag
 // set channel
 // (NB: it stops free-running mode)
 void
-set_chan (unsigned char ch) {
+set_chan (void) {
 	// disable ADC
 	cbi(ADCSRA,ADEN);
 	// set channel
@@ -64,7 +64,7 @@ ISR(ANALOG_COMP_vect) {
 		// any channels left?
 		if (ch<cs.chs) {
 			// select next channel
-			set_chan(ch);
+			set_chan();
 			// start first conversion
 			sbi(ADCSRA,ADSC);
 			// clear AC interrupt flag
@@ -111,7 +111,7 @@ ISR(ADC_vect,ISR_NOBLOCK) {
 		// any channels left?
 		if (ch<cs.chs) {
 			// select the next channel
-			set_chan(ch);
+			set_chan();
 		} else {
 			// done with the last channel
 			// turn off acquisition LED
@@ -195,7 +195,7 @@ pinMode(11,OUTPUT);
 
 // sweep start-up
 void
-sweep_start (struct ctl cs) {
+sweep_start (void) {
 	// set trigger slope
 	if (cs.slope)
 		// trigger on rising edge
@@ -205,7 +205,7 @@ sweep_start (struct ctl cs) {
 		cbi(ACSR,ACIS0);
 	// select channel 0
 	ch=0;
-	set_chan(ch);
+	set_chan();
 	// mode-specific actions
 	if (cs.samp==1) {
 		// equivalent-time sampling
@@ -251,7 +251,7 @@ loop () {
 	// clear ready flag
 	rdy=0;
 	// start sweep
-	sweep_start(cs);
+	sweep_start();
 	// wait for the data to be ready
 	do {
 		// read the new control word, if available
