@@ -73,7 +73,7 @@ ISR(ANALOG_COMP_vect) {
 			ACSR|=1<<ACI;
 		} else {
 			// done with the last channel
-			// disable analog comparator interrupt
+			// disable AC interrupt
 			cbi(ACSR,ACIE);
 			// turn off acquisition LED
 			PORTB&=B11011111;
@@ -223,13 +223,13 @@ sweep_start (void) {
 		sbi(ACSR,ACIE);
 	} else {
 		// real-time sampling
+		// set ADC clock prescale value
+		ADCSRA=(ADCSRA&B11111000)+cs.prescale;
 		// put ADC in free-running mode
 		cbi(ADCSRB,ADTS2);
 		cbi(ADCSRB,ADTS0);
 		// disable ADC interrupt
 		cbi(ADCSRA,ADIE);
-		// set ADC clock prescale value
-		ADCSRA=(ADCSRA&B11111000)+cs.prescale;
 		// start first conversion
 		sbi(ADCSRA,ADSC);
 		// deal with trigger modes
@@ -239,7 +239,7 @@ sweep_start (void) {
 			sbi(ACSR,ACIE);
 		else
 			// auto trigger
-			// call AC ISR manually
+			// call AC ISR immediately
 			while (ch<cs.chs)
 				ANALOG_COMP_vect();
 	}
