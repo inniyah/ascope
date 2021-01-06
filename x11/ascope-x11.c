@@ -353,7 +353,16 @@ main (void) {
 				}
 				if (sync && mode&M_RUN && ks==XK_m) {
 					// toggle sampling mode
-					cs.samp=(cs.samp==1)?0:1;
+					if (cs.samp==1) {
+						// from et to rt
+						cs.samp=0; // rt
+						cs.prescale=2; // fastest rate
+					} else {
+						// from rt to et
+						cs.samp=1; // et
+						cs.trig=1; // normal triggering
+						cs.prescale=1; // fastest rate
+					}
 					sendcw=1;
 				}
 				if (sync && mode&M_RUN && isdigit((int)str[0])) {
