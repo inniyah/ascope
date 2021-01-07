@@ -18,10 +18,9 @@ volatile unsigned char rdy; // ready flag
 #define cbi(port,bit) (port)&=~(1<<(bit))
 
 // set channel
-// (NB: it stops free-running mode)
 void
 set_chan (void) {
-	// disable ADC
+	// disable ADC (as suggested in the datasheet, section 28.5)
 	cbi(ADCSRA,ADEN);
 	// set channel
 	ADMUX=(ADMUX&B11110000)+(ch&B00001111);
@@ -66,6 +65,7 @@ ISR(ANALOG_COMP_vect) {
 			// select next channel
 			set_chan();
 			// start first conversion
+			// (since set_chan() stops free-running)
 			sbi(ADCSRA,ADSC);
 			// clear AC interrupt flag
 			// as it might be raised while this ISR is running,
@@ -169,9 +169,9 @@ setup () {
 	cs.prescale=2; // fastest rate
 }
 
-// sweep start-up
+// sweep start-up actions
 void
-sweep_start (void) {
+start_sweep (void) {
 	// set trigger slope
 	if (cs.slope)
 		// trigger on rising edge
@@ -227,7 +227,7 @@ loop () {
 	// clear ready flag
 	rdy=0;
 	// start sweep
-	sweep_start();
+	start_sweep();
 	// wait for the data to be ready
 	do {
 		// read the new control word, if available
