@@ -157,10 +157,9 @@ setup () {
 	TCCR0B&=B11111000;
 	// init serial
 	Serial.begin(9600);
-	// init LED
 	// we use LED 13 as an acquisition indicator
-	pinMode(13,OUTPUT);
-	PORTB&=B11011111;
+	DDRB|=B00100000; // output
+	PORTB&=B11011111; // off for now
 	// initial mode
 	cs.samp=0; // RT sampling
 	cs.trig=0; // auto-trigger
