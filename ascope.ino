@@ -28,6 +28,15 @@ set_chan (void) {
 	sbi(ADCSRA,ADEN);
 }
 
+// transmit a character over the serial
+void
+tx (unsigned char c) {
+	// wait for the transmit buffer to be ready
+	while (!(UCSR0A&(1<<UDRE0)));
+	// put data into the buffer
+	UDR0=c;
+}
+
 // AC ISR
 ISR(ANALOG_COMP_vect) {
 	if (cs.samp==1) {
@@ -156,7 +165,11 @@ setup () {
 	// and don't want its ISR to delay our AC ISR
 	TCCR0B&=B11111000;
 	// init serial
-	Serial.begin(9600);
+	// set baud rate to 9600
+	UBRR0L=16000000/16/9600-1;
+	// frame format is 8N1 by default
+	// enable RX and TX
+	UCSR0B=B00011000;
 	// we use LED 13 as an acquisition indicator
 	DDRB|=B00100000; // output
 	PORTB&=B11011111; // off for now
@@ -230,12 +243,12 @@ loop () {
 	// wait for the data to be ready
 	do {
 		// read the new control word, if available
-		if (Serial.available()) {
+		if (UCSR0A&(1<<RXC0)) {
 			// stop current sweep
 			cbi(ACSR,ACIE); // disable AC interrupt
 			TCCR1B&=B11111000; // stop timer (for ET mode)
 			// read and parse the new control word
-			c=Serial.read();
+			c=UDR0;
 			parsecw(c,&cs);
 			// clear ready flag and start new sweep
 			rdy=0;
@@ -243,20 +256,18 @@ loop () {
 		}
 	} while (!rdy);
 	// write out data
-	Serial.write(0); // sync marker
-	Serial.write(makecw(cs)); // current control word
+	tx(0); // sync marker
+	tx(makecw(cs)); // current control word
 	if (rdy) {
-		Serial.write(1); // data ready flag
+		tx(1); // data ready flag
 		for (ch=0; ch<cs.chs; ++ch)
 			for (n=0; n<N; ++n) {
 				c=buf[ch][n];
 				// we write 1 instead of 0
 				// to avoid confusion with the sync marker
 				if (c==0) c=1;
-				Serial.write(c);
+				tx(c);
 			}
 	} else
-		Serial.write(255); // data not ready flag
-	// wait for the transmission to complete
-	Serial.flush();
+		tx(255); // data not ready flag
 }
