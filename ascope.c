@@ -2,6 +2,9 @@
 // Copyright (c) 2021 Alexander Mukhin
 // MIT License
 
+#include <avr/io.h>
+#include <avr/interrupt.h>
+
 #include "ascope.h"
 
 // global variables
@@ -273,4 +276,11 @@ loop () {
 			}
 	} else
 		tx(255); // data not ready flag
+}
+
+int
+main () {
+	setup();
+	while (1)
+		loop();
 }
