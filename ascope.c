@@ -162,11 +162,6 @@ setup () {
 	// disable digital input buffer on AIN0 and AIN1
 	sbi(DIDR1,AIN1D);
 	sbi(DIDR1,AIN0D);
-	// init Timer/Counter1
-	// reset control registers to the default values
-	TCCR1A=0;
-	TCCR1B=0;
-	TCCR1C=0;
 	// init serial
 	// set baud rate to 9600
 	UBRR0L=16000000/16/9600-1;
