@@ -97,9 +97,8 @@ ISR(ANALOG_COMP_vect) {
 
 // ADC ISR (used in ET mode only)
 // we execute it with interrupts always enabled (ISR_NOBLOCK),
-// so that the next AC interrupt will be processed
-// as soon as it happens, and restoring flags in this ISR's epilogue
-// will not delay it
+// so that the next AC interrupt will be processed as soon as it happens,
+// and restoring flags in this ISR's epilogue will not delay it
 ISR(ADC_vect,ISR_NOBLOCK) {
 	// stop timer
 	cbi3(TCCR1B,CS12,CS11,CS10);
@@ -137,6 +136,7 @@ ISR(ADC_vect,ISR_NOBLOCK) {
 	// enable AC interrupts and clear AC interrupt flag as well
 	// (we don't want to process a stale pending interrupt)
 	sbi2(ACSR,ACI,ACIE);
+	// from now on, an AC interrupt can happen
 }
 
 void
