@@ -13,9 +13,12 @@ volatile int n; // current sample number
 volatile unsigned char ch; // current channel
 volatile unsigned char rdy; // ready flag
 
-// set and clear bit macros
-#define sbi(port,bit) (port)|=(1<<(bit))
-#define cbi(port,bit) (port)&=~(1<<(bit))
+// test, set and clear bit macros
+#define bit(p,b) ((p)&1<<(b))
+#define sbi(p,b) (p)|=1<<(b)
+#define cbi(p,b) (p)&=~(1<<(b))
+#define sbi2(p,b,c) (p)|=1<<(b)|1<<(c)
+#define cbi3(p,b,c,d) (p)&=~(1<<(b)|1<<(c)|1<<(d))
 
 // set channel
 void
@@ -23,7 +26,7 @@ set_chan (void) {
 	// disable ADC (as suggested in the datasheet, section 28.5)
 	cbi(ADCSRA,ADEN);
 	// set channel
-	ADMUX=(ADMUX&B11110000)+(ch&B00001111);
+	ADMUX=(ADMUX&0xf0)+(ch&0x0f);
 	// enable ADC
 	sbi(ADCSRA,ADEN);
 }
@@ -32,7 +35,7 @@ set_chan (void) {
 void
 tx (unsigned char c) {
 	// wait for the transmit buffer to be ready
-	while (!(UCSR0A&(1<<UDRE0)));
+	while (!bit(UCSR0A,UDRE0));
 	// put data into the buffer
 	UDR0=c;
 }
@@ -46,26 +49,26 @@ ISR(ANALOG_COMP_vect) {
 		// disable AC interrupts
 		cbi(ACSR,ACIE);
 		// turn on acquisition LED
-		PORTB|=B00100000;
+		sbi(PORTB,PORTB5);
 	} else {
 		// real-time sampling
 		register int n;
 		register unsigned char *bufptr;
 		// turn on acquisition LED
-		PORTB|=B00100000;
+		sbi(PORTB,PORTB5);
 		// wait for the ongoing conversion and discard its result
 		// as it might be below trigger level
-		while (!(ADCSRA&(1<<ADIF)));
-		ADCSRA|=1<<ADIF;
+		while (!bit(ADCSRA,ADIF));
+		sbi(ADCSRA,ADIF);
 		// start acquisition
 		bufptr=buf[ch];
 		for (n=0; n<N; ++n) {
 			// wait for the conversion result
-			while (!(ADCSRA&(1<<ADIF)));
+			while (!bit(ADCSRA,ADIF));
 			// save conversion result
 			*bufptr++=ADCH;
 			// turn off ADIF flag
-			ADCSRA|=1<<ADIF;
+			sbi(ADCSRA,ADIF);
 		}
 		// try next channel
 		++ch;
@@ -79,13 +82,13 @@ ISR(ANALOG_COMP_vect) {
 			// clear AC interrupt flag
 			// as it might be raised while this ISR is running,
 			// (we need to keep the phases synchronized)
-			ACSR|=1<<ACI;
+			sbi(ACSR,ACI);
 		} else {
 			// done with the last channel
 			// disable AC interrupt
 			cbi(ACSR,ACIE);
 			// turn off acquisition LED
-			PORTB&=B11011111;
+			cbi(PORTB,PORTB5);
 			// raise ready flag
 			rdy=1;
 		}
@@ -99,7 +102,7 @@ ISR(ANALOG_COMP_vect) {
 // will not delay it
 ISR(ADC_vect,ISR_NOBLOCK) {
 	// stop timer
-	TCCR1B&=B11111000;
+	cbi3(TCCR1B,CS12,CS11,CS10);
 	// reset counter
 	TCNT1=0;
 	// clear TC1 output compare B match flag
@@ -124,7 +127,7 @@ ISR(ADC_vect,ISR_NOBLOCK) {
 		} else {
 			// done with the last channel
 			// turn off acquisition LED
-			PORTB&=B11011111;
+			cbi(PORTB,PORTB5);
 			// raise ready flag
 			rdy=1;
 			// we're done
@@ -133,7 +136,7 @@ ISR(ADC_vect,ISR_NOBLOCK) {
 	}
 	// enable AC interrupts and clear AC interrupt flag as well
 	// (we don't want to process a stale pending interrupt)
-	ACSR|=B00011000;
+	sbi2(ACSR,ACI,ACIE);
 }
 
 void
@@ -145,7 +148,7 @@ setup () {
 	// left-adjust output
 	sbi(ADMUX,ADLAR);
 	// disable digital input buffer on all ADC pins (ADC0-ADC7)
-	DIDR0=B11111111;
+	DIDR0=0xff;
 	// enable auto trigger mode
 	sbi(ADCSRA,ADATE);
 	// enable ADC
@@ -163,16 +166,16 @@ setup () {
 	TCCR1C=0;
 	// stop Timer/Counter0, since we're not using it,
 	// and don't want its ISR to delay our AC ISR
-	TCCR0B&=B11111000;
+	cbi3(TCCR0B,CS02,CS01,CS00);
 	// init serial
 	// set baud rate to 9600
 	UBRR0L=16000000/16/9600-1;
 	// frame format is 8N1 by default
 	// enable RX and TX
-	UCSR0B=B00011000;
+	sbi2(UCSR0B,RXEN0,TXEN0);
 	// we use LED 13 as an acquisition indicator
-	DDRB|=B00100000; // output
-	PORTB&=B11011111; // off for now
+	sbi(DDRB,DDB5); // output
+	cbi(PORTB,PORTB5); // off for now
 	// initial mode
 	cs.samp=0; // RT sampling
 	cs.trig=0; // auto-trigger
@@ -198,7 +201,7 @@ start_sweep (void) {
 	if (cs.samp==1) {
 		// equivalent-time sampling
 		// set ADC clock prescale value
-		ADCSRA=(ADCSRA&B11111000)+2; // fastest
+		ADCSRA=(ADCSRA&0xf8)+2; // fastest
 		// set auto-trigger on Timer/Counter1 Compare Match B
 		sbi(ADCSRB,ADTS2);
 		sbi(ADCSRB,ADTS0);
@@ -212,7 +215,7 @@ start_sweep (void) {
 	} else {
 		// real-time sampling
 		// set ADC clock prescale value
-		ADCSRA=(ADCSRA&B11111000)+cs.prescale;
+		ADCSRA=(ADCSRA&0xf8)+cs.prescale;
 		// put ADC in free-running mode
 		cbi(ADCSRB,ADTS2);
 		cbi(ADCSRB,ADTS0);
@@ -243,10 +246,10 @@ loop () {
 	// wait for the data to be ready
 	do {
 		// read the new control word, if available
-		if (UCSR0A&(1<<RXC0)) {
+		if (bit(UCSR0A,RXC0)) {
 			// stop current sweep
 			cbi(ACSR,ACIE); // disable AC interrupt
-			TCCR1B&=B11111000; // stop timer (for ET mode)
+			cbi3(TCCR1B,CS12,CS11,CS10); // stop timer (for ET mode)
 			// read and parse the new control word
 			c=UDR0;
 			parsecw(c,&cs);
