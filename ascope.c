@@ -144,7 +144,7 @@ ISR(ADC_vect,ISR_NOBLOCK) {
 
 void
 setup () {
-	// init ADC
+	// --- init ADC ---
 	// select AVcc as voltage reference
 	cbi(ADMUX,REFS1);
 	sbi(ADMUX,REFS0);
@@ -156,22 +156,22 @@ setup () {
 	sbi(ADCSRA,ADATE);
 	// enable ADC
 	sbi(ADCSRA,ADEN);
-	// init AC
+	// --- init AC ---
 	// this trigger mode selection bit is always set
 	sbi(ACSR,ACIS1);
 	// disable digital input buffer on AIN0 and AIN1
 	sbi(DIDR1,AIN1D);
 	sbi(DIDR1,AIN0D);
-	// init serial
+	// --- init serial ---
 	// set baud rate to 9600
 	UBRR0L=16000000/16/9600-1;
 	// frame format is 8N1 by default
 	// enable RX and TX
 	sbi2(UCSR0B,RXEN0,TXEN0);
-	// we use LED 13 as an acquisition indicator
+	// --- init acquisition LED ---
 	sbi(DDRB,DDB5); // output
 	cbi(PORTB,PORTB5); // off for now
-	// initial mode
+	// --- set initial mode ---
 	cs.samp=0; // RT sampling
 	cs.trig=0; // auto-trigger
 	cs.chs=1; // one channel
