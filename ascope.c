@@ -167,9 +167,6 @@ setup () {
 	TCCR1A=0;
 	TCCR1B=0;
 	TCCR1C=0;
-	// stop Timer/Counter0, since we're not using it,
-	// and don't want its ISR to delay our AC ISR
-	cbi3(TCCR0B,CS02,CS01,CS00);
 	// init serial
 	// set baud rate to 9600
 	UBRR0L=16000000/16/9600-1;
