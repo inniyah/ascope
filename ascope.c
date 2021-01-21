@@ -237,7 +237,7 @@ start_sweep (void) {
 }
 
 void
-loop () {
+sweep () {
 	unsigned char c;
 	// clear ready flag
 	rdy=0;
@@ -278,6 +278,5 @@ loop () {
 int
 main () {
 	setup();
-	while (1)
-		loop();
+	while (1) sweep();
 }
