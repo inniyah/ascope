@@ -143,7 +143,7 @@ ISR(ADC_vect,ISR_NOBLOCK) {
 }
 
 void
-setup () {
+setup (void) {
 	// --- init ADC ---
 	// select AVcc as voltage reference
 	cbi(ADMUX,REFS1);
@@ -232,7 +232,7 @@ start_sweep (void) {
 }
 
 void
-sweep () {
+sweep (void) {
 	unsigned char c;
 	// clear ready flag
 	rdy=0;
@@ -271,7 +271,7 @@ sweep () {
 }
 
 int
-main () {
+main (void) {
 	setup();
 	while (1) sweep();
 }
