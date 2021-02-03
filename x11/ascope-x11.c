@@ -102,34 +102,24 @@ void
 makeosc (Display *dpy, Pixmap pm, GC gc, float buf[MAXCHS][N], int chs, int xy) {
 	int ch; // current channel
 	int i; // counter
-	int x,xprev,y,yprev; // coordinates
+	XPoint pp[N]; // points
 	if (xy) {
 		// XY mode
 		XSetForeground(dpy,gc,clrs[0]|clrs[1]);
 		for (i=0; i<N; ++i) {
-			x=W*(buf[0][i]-Vmin)/(Vmax-Vmin);
-			y=H*(Vmax-buf[1][i])/(Vmax-Vmin);
-			if (i)
-				XDrawLine(dpy,pm,gc,xprev,yprev,x,y);
-			else
-				XDrawPoint(dpy,pm,gc,x,y);
-			xprev=x;
-			yprev=y;
+			pp[i].x=W*(buf[0][i]-Vmin)/(Vmax-Vmin);
+			pp[i].y=H*(Vmax-buf[1][i])/(Vmax-Vmin);
 		}
+		XDrawLines(dpy,pm,gc,pp,N,CoordModeOrigin);
 	} else {
 		// normal mode
 		for (ch=0; ch<chs; ++ch) {
 			XSetForeground(dpy,gc,clrs[ch]);
 			for (i=0; i<N; ++i) {
-				x=i*W/N;
-				y=H*(Vmax-buf[ch][i])/(Vmax-Vmin);
-				if (i)
-					XDrawLine(dpy,pm,gc,xprev,yprev,x,y);
-				else
-					XDrawPoint(dpy,pm,gc,0,y);
-				xprev=x;
-				yprev=y;
+				pp[i].x=i*W/N;
+				pp[i].y=H*(Vmax-buf[ch][i])/(Vmax-Vmin);
 			}
+			XDrawLines(dpy,pm,gc,pp,N,CoordModeOrigin);
 		}
 	}
 }
