@@ -17,7 +17,7 @@ volatile unsigned char ch; // current channel
 volatile unsigned char rdy; // ready flag
 
 // test, set and clear bit macros
-#define bit(p,b) ((p)&1<<(b))
+#define vbit(p,b) ((p)&1<<(b))
 #define sbi(p,b) (p)|=1<<(b)
 #define cbi(p,b) (p)&=~(1<<(b))
 #define sbi2(p,b,c) (p)|=1<<(b)|1<<(c)
@@ -38,7 +38,7 @@ set_chan (void) {
 void
 tx (unsigned char c) {
 	// wait for the transmit buffer to be ready
-	while (!bit(UCSR0A,UDRE0));
+	while (!vbit(UCSR0A,UDRE0));
 	// put data into the buffer
 	UDR0=c;
 }
@@ -61,13 +61,13 @@ ISR(ANALOG_COMP_vect) {
 		sbi(PORTB,PORTB5);
 		// wait for the ongoing conversion and discard its result
 		// as it might be below trigger level
-		while (!bit(ADCSRA,ADIF));
+		while (!vbit(ADCSRA,ADIF));
 		sbi(ADCSRA,ADIF);
 		// start acquisition
 		bufptr=buf[ch];
 		for (n=0; n<N; ++n) {
 			// wait for the conversion result
-			while (!bit(ADCSRA,ADIF));
+			while (!vbit(ADCSRA,ADIF));
 			// save conversion result
 			*bufptr++=ADCH;
 			// turn off ADIF flag
@@ -241,7 +241,7 @@ sweep (void) {
 	// wait for the data to be ready
 	do {
 		// read the new control word, if available
-		if (bit(UCSR0A,RXC0)) {
+		if (vbit(UCSR0A,RXC0)) {
 			// stop current sweep
 			cbi(ACSR,ACIE); // disable AC interrupt
 			cbi3(TCCR1B,CS12,CS11,CS10); // stop timer (for ET mode)
