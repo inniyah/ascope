@@ -22,7 +22,7 @@ CFLAGS= -MD -Wall -pedantic -Wno-unused-variable -Wno-unused-value -Wno-unused-f
 LDFLAGS= -Wl,--as-needed -Wl,--no-undefined -Wl,--no-allow-shlib-undefined
 INCS=-Iascope
 LIBS=
-DEFS=
+DEFS= -DDEV=\"/dev/ttyUSB0\"
 CSTD=-std=c11
 CPPSTD=-std=c++11
 

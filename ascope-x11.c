@@ -3,7 +3,10 @@
 // MIT License
 
 // device
+#ifndef DEV
 #define DEV "/dev/ttyACM0"
+#endif
+
 // actual input voltage range
 #define Vmin -5.0
 #define Vmax 5.0
